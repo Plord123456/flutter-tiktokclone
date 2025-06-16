@@ -1,83 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tiktok_clone/app/data/models/video_model.dart';
 
-import '../../../data/models/video_model.dart';
 import '../../home/controllers/home_controller.dart';
 
 class UserFeedController extends GetxController {
-  // Dữ liệu được truyền vào từ trang Profile
-  final String userId;
-  final List<Video> initialVideos;
+  final supabase = Supabase.instance.client;
+  final RxList<Video> videos = <Video>[].obs;
+  late PageController pageController;
   final int initialIndex;
 
-  UserFeedController({
-    required this.userId,
-    required this.initialVideos,
-    required this.initialIndex,
-  });
+  UserFeedController({required List<Video> initialVideos, required this.initialIndex, required userId}) {
+    videos.assignAll(initialVideos);
+  }
 
-  final supabase = Supabase.instance.client;
-  final HomeController homeController = Get.find<HomeController>(); // Tìm HomeController đã có
-
-  late final PageController pageController;
-  final RxList<Video> videos = <Video>[].obs;
-  final count = 0.obs;
-
-  // State cho việc tải thêm
-  var isLoadingMore = false.obs;
-  var hasMoreVideos = true.obs;
-  var currentPage = 0;
-  final pageSize = 12;
   @override
   void onInit() {
     super.onInit();
-    // Khởi tạo danh sách video ban đầu
-    videos.assignAll(initialVideos);
-    // Khởi tạo PageController để bắt đầu từ đúng video đã được nhấn
     pageController = PageController(initialPage: initialIndex);
-    // Tính toán trang hiện tại dựa trên số video đã có
-    currentPage = (videos.length / pageSize).ceil();
   }
 
-  @override
-  void onReady() {
-    super.onReady();
-  }
-  // user_feed_controller.dart (Tối ưu)
-  Future<void> loadMoreVideos() async {
-    if (isLoadingMore.value || !hasMoreVideos.value) return;
-    isLoadingMore.value = true;
-    try {
-      final from = currentPage * pageSize;
-      final to = from + pageSize - 1;
-      final response = await supabase.rpc(
-        'get_videos_for_user',
-        params: {
-          'p_profile_id': userId,
-          'p_current_user_id': supabase.auth.currentUser?.id,
-        },
-      ).range(from, to);
-
-      if (response.isNotEmpty) {
-        final newVideos = (response as List)
-            .map((json) => Video.fromJson(json))
-            .toList();
-        videos.addAll(newVideos);
-        currentPage++;
-      } else {
-        hasMoreVideos.value = false;
-      }
-    } catch (e) {
-      Get.snackbar('Error', 'Failed to load more videos: ${e.toString()}');
-    } finally {
-      isLoadingMore.value = false;
-    }
-  }
   @override
   void onClose() {
+    pageController.dispose();
     super.onClose();
   }
 
-  void increment() => count.value++;
+  Future<void> loadMoreVideos() async {
+    if (videos.isEmpty) return;
+    try {
+      final lastVideoId = videos.last.id;
+      final userId = videos.first.postedById;
+
+      // ✅ SỬA LỖI: Chỉ định rõ cách join với bảng profiles để tránh lỗi
+      final response = await supabase
+          .from('videos')
+          .select('*, profiles!videos_user_id_fkey(*)')
+          .eq('user_id', userId)
+          .lt('id', lastVideoId) // Tải các video cũ hơn
+          .order('created_at', ascending: true)
+          .limit(5);
+
+      final homeController = Get.find<HomeController>();
+      final newVideos = homeController. _mapVideoResponse(response, homeController.followService.followedUserIds);
+
+      videos.addAll(newVideos);
+    } catch (e) {
+      print('Failed to load more videos: $e');
+    }
+  }
 }
