@@ -31,15 +31,6 @@ class LayoutView extends GetView<LayoutController> {
                 label: 'Home',
                 index: 0,
               ),
-              // Nút Search/Feed (index 1)
-              _buildNavItem(
-                context: context,
-                icon: Iconsax.user,
-                label: 'Profile',
-                index: 1,
-              ),
-              // Nút Upload ở giữa
-              // Thay thế IconButton bằng một Widget custom hơn để nổi bật
               InkWell(
                 onTap: () => controller.pickAndNavigateToConfirm(), // Chỉ gọi hàm từ controller
                 child: Container(
@@ -59,13 +50,15 @@ class LayoutView extends GetView<LayoutController> {
                   child: const Icon(Iconsax.add, color: Colors.white, size: 28),
                 ),
               ),
-              // Nút Profile (index 2)
+              // Nút Search/Feed (index 1)
               _buildNavItem(
                 context: context,
-                icon: Iconsax.setting,
-                label: 'Setting',
-                index: 2,
+                icon: Iconsax.user,
+                label: 'Profile',
+                index: 1,
               ),
+
+
             ],
           ),
         ),

@@ -15,7 +15,6 @@ class LayoutController extends GetxController {
 
   final List<Widget> screens = [
     HomeView(),
-    VideoUserView (),
     ProfileView(),
   ];
 
