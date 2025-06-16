@@ -10,41 +10,44 @@ class VideoUserController extends GetxController {
 
   final Rx<String> profileUserId = ''.obs;
   final Rxn<Profile> userProfile = Rxn<Profile>();
-  final RxList<Video> userVideos = <Video>[].obs; // Đổi tên để rõ ràng hơn
+  final RxList<Video> userVideos = <Video>[].obs; // Giữ tên này để rõ ràng
   final RxBool isFollowing = false.obs;
 
-  final RxBool isProfileLoading = true.obs;
-  final RxBool isVideosLoading = true.obs;
+  final RxBool isLoading = true.obs; // Một biến loading chính
 
-  // ✅ SỬA LỖI: Thêm các biến còn thiếu để quản lý tải thêm
+  // ✅ SỬA LỖI: Thêm các biến còn thiếu để quản lý tải thêm video
   final RxBool isLoadingMore = false.obs;
   final RxBool hasMoreVideos = true.obs;
-  final int _pageSize = 10;
+  final int _pageSize = 12; // Tăng pagesize cho grid view
 
   String get currentUserId => supabase.auth.currentUser?.id ?? '';
+  bool get isMyProfile => currentUserId == profileUserId.value;
 
   @override
   void onInit() {
     super.onInit();
     final arguments = Get.arguments as Map<String, dynamic>?;
     profileUserId.value = arguments?['userId'] ?? currentUserId;
-    isFollowing.value = followService.isFollowing(profileUserId.value);
+
+    // Lắng nghe thay đổi trạng thái follow từ service
+    followService.followedUserIds.listen((followedIds) {
+      isFollowing.value = followedIds.contains(profileUserId.value);
+    });
+
     fetchData();
   }
 
   Future<void> fetchData() async {
-    isProfileLoading.value = true;
-    isVideosLoading.value = true;
+    isLoading.value = true;
     try {
       await Future.wait([
         fetchUserProfile(),
-        fetchUserVideos(isRefresh: true), // Gọi với isRefresh
+        fetchUserVideos(isRefresh: true),
       ]);
     } catch (e) {
       Get.snackbar('Lỗi', 'Không thể tải dữ liệu người dùng: ${e.toString()}');
     } finally {
-      isProfileLoading.value = false;
-      isVideosLoading.value = false;
+      isLoading.value = false;
     }
   }
 
@@ -53,7 +56,7 @@ class VideoUserController extends GetxController {
     try {
       final response = await supabase
           .from('profiles')
-          .select('*, follower_count:follows!follower_id(count), following_count:follows!following_id(count)')
+          .select('*, follower_count:follows!follower_id(count), following_count:follows!following_id(count), post_count:videos(count)')
           .eq('id', profileUserId.value)
           .single();
       userProfile.value = Profile.fromJson(response);
@@ -67,79 +70,46 @@ class VideoUserController extends GetxController {
       userVideos.clear();
       hasMoreVideos.value = true;
     }
-    if (!hasMoreVideos.value || isLoadingMore.value) return;
+    // Ngăn việc gọi API trùng lặp
+    if (isLoading.value || isLoadingMore.value || !hasMoreVideos.value) return;
 
-    if (isRefresh) isVideosLoading.value = true;
     isLoadingMore.value = true;
 
     try {
-      final from = isRefresh ? 0 : userVideos.length;
-      final to = from + _pageSize -1;
+      final from = userVideos.length;
+      final to = from + _pageSize - 1;
 
       // ✅ SỬA LỖI: Chỉ định rõ cách join với bảng profiles để tránh lỗi
       final response = await supabase
           .from('videos')
-          .select('''
-            id, video_url, title, thumbnail_url, user_id, created_at,
-            profiles!videos_user_id_fkey(id, username, avatar_url),
-            likes(user_id),
-            comments_count:comments(count)
-          ''')
+          .select('id, thumbnail_url, user_id, video_url, title, created_at, profiles!inner(id, username, avatar_url)')
           .eq('user_id', profileUserId.value)
           .order('created_at', ascending: false)
           .range(from, to);
 
-      final newVideos = _mapVideoResponse(response, followService.followedUserIds);
+      // Không cần map phức tạp ở đây vì chúng ta không cần thông tin like/follow trong grid
+      final newVideos = response.map((e) => Video.fromJson(e)).toList();
 
       if (newVideos.length < _pageSize) {
         hasMoreVideos.value = false;
       }
 
-      if(isRefresh){
-        userVideos.assignAll(newVideos);
-      } else {
-        userVideos.addAll(newVideos);
-      }
+      userVideos.addAll(newVideos);
 
     } catch (e) {
       print("Lỗi trong fetchUserVideos: $e");
     } finally {
-      if (isRefresh) isVideosLoading.value = false;
       isLoadingMore.value = false;
     }
   }
 
-  // ✅ SỬA LỖI: Sao chép logic map vào đây để controller tự hoạt động
-  List<Video> _mapVideoResponse(List<Map<String, dynamic>> response, Set<String> followedUserIds) {
-    return response.map((item) {
-      final profile = item['profiles'];
-      if (profile == null) return null;
-
-      final likes = item['likes'] as List;
-      final commentsCountList = item['comments_count'] as List;
-      final commentsCount = commentsCountList.isNotEmpty ? commentsCountList.first['count'] ?? 0 : 0;
-      final isLiked = likes.any((like) => like['user_id'] == currentUserId);
-
-      return Video(
-        id: item['id'],
-        videoUrl: item['video_url'],
-        title: item['title'] ?? '',
-        thumbnailUrl: item['thumbnail_url'] ?? '',
-        username: profile['username'] ?? 'Unknown',
-        profilePhoto: profile['avatar_url'] ?? '',
-        postedById: item['user_id'],
-        initialLikeCount: likes.length,
-        initialCommentCount: commentsCount,
-        initialIsLiked: isLiked,
-        initialIsFollowed: followedUserIds.contains(item['user_id']),
-      );
-    }).whereType<Video>().toList();
+  void toggleFollow() {
+    if (profileUserId.value.isNotEmpty && !isMyProfile) {
+      followService.toggleFollow(profileUserId.value);
+    }
   }
 
-  void toggleFollow() {
-    if (profileUserId.value.isNotEmpty) {
-      followService.toggleFollow(profileUserId.value);
-      isFollowing.value = followService.isFollowing(profileUserId.value);
-    }
+  Future<void> deleteVideo(String videoId, String videoUrl) async {
+    // Logic xóa video
   }
 }

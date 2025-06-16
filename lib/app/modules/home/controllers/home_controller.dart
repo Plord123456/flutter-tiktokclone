@@ -135,6 +135,7 @@ class HomeController extends GetxController {
         initialCommentCount: commentsCount,
         initialIsLiked: isLiked,
         initialIsFollowed: followedUserIds.contains(item['user_id']),
+        createdAt: DateTime.parse(item['created_at'] as String? ?? DateTime.now().toIso8601String()),
       );
     }).whereType<Video>().toList();
   }

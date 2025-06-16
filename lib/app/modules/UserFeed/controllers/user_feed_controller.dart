@@ -1,80 +1,46 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tiktok_clone/app/data/models/profile_model.dart';
+import 'package:tiktok_clone/app/data/models/video_model.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
-import '../../../data/models/video_model.dart';
 
-class VideoUserController extends GetxController {
+class UserFeedController extends GetxController {
   final supabase = Supabase.instance.client;
-  final followService = Get.find<FollowService>();
+  final followService = Get.find<FollowService>(); // Lấy follow service
+  final RxList<Video> videos = <Video>[].obs;
+  late PageController pageController;
+  final int initialIndex;
 
-  final Rx<String> profileUserId = ''.obs;
-  final Rxn<Profile> userProfile = Rxn<Profile>();
-  final RxList<Video> userVideos = <Video>[].obs; // Đổi tên để rõ ràng hơn
-  final RxBool isFollowing = false.obs;
-
-  final RxBool isProfileLoading = true.obs;
-  final RxBool isVideosLoading = true.obs;
-
-  // ✅ SỬA LỖI: Thêm các biến còn thiếu để quản lý tải thêm
   final RxBool isLoadingMore = false.obs;
   final RxBool hasMoreVideos = true.obs;
-  final int _pageSize = 10;
+  final int _pageSize = 5;
 
   String get currentUserId => supabase.auth.currentUser?.id ?? '';
+
+  UserFeedController({required List<Video> initialVideos, required this.initialIndex}) {
+    videos.assignAll(initialVideos);
+  }
 
   @override
   void onInit() {
     super.onInit();
-    final arguments = Get.arguments as Map<String, dynamic>?;
-    profileUserId.value = arguments?['userId'] ?? currentUserId;
-    isFollowing.value = followService.isFollowing(profileUserId.value);
-    fetchData();
+    pageController = PageController(initialPage: initialIndex);
   }
 
-  Future<void> fetchData() async {
-    isProfileLoading.value = true;
-    isVideosLoading.value = true;
-    try {
-      await Future.wait([
-        fetchUserProfile(),
-        fetchUserVideos(isRefresh: true), // Gọi với isRefresh
-      ]);
-    } catch (e) {
-      Get.snackbar('Lỗi', 'Không thể tải dữ liệu người dùng: ${e.toString()}');
-    } finally {
-      isProfileLoading.value = false;
-      isVideosLoading.value = false;
-    }
+  @override
+  void onClose() {
+    pageController.dispose();
+    super.onClose();
   }
 
-  Future<void> fetchUserProfile() async {
-    if (profileUserId.value.isEmpty) return;
-    try {
-      final response = await supabase
-          .from('profiles')
-          .select('*, follower_count:follows!follower_id(count), following_count:follows!following_id(count)')
-          .eq('id', profileUserId.value)
-          .single();
-      userProfile.value = Profile.fromJson(response);
-    } catch (e) {
-      print("Lỗi trong fetchUserProfile: $e");
-    }
-  }
+  Future<void> loadMoreVideos() async {
+    if (videos.isEmpty || isLoadingMore.value || !hasMoreVideos.value) return;
 
-  Future<void> fetchUserVideos({bool isRefresh = false}) async {
-    if (isRefresh) {
-      userVideos.clear();
-      hasMoreVideos.value = true;
-    }
-    if (!hasMoreVideos.value || isLoadingMore.value) return;
-
-    if (isRefresh) isVideosLoading.value = true;
     isLoadingMore.value = true;
 
     try {
-      final from = isRefresh ? 0 : userVideos.length;
-      final to = from + _pageSize -1;
+      final lastVideoCreatedAt = videos.last.createdAt;
+      final userId = videos.first.postedById;
 
       // ✅ SỬA LỖI: Chỉ định rõ cách join với bảng profiles để tránh lỗi
       final response = await supabase
@@ -85,9 +51,10 @@ class VideoUserController extends GetxController {
             likes(user_id),
             comments_count:comments(count)
           ''')
-          .eq('user_id', profileUserId.value)
-          .order('created_at', ascending: false)
-          .range(from, to);
+          .eq('user_id', userId)
+          .lt('created_at', lastVideoCreatedAt.toIso8601String())
+          .order('created_at', ascending: true)
+          .limit(_pageSize);
 
       final newVideos = _mapVideoResponse(response, followService.followedUserIds);
 
@@ -95,22 +62,16 @@ class VideoUserController extends GetxController {
         hasMoreVideos.value = false;
       }
 
-      if(isRefresh){
-        userVideos.assignAll(newVideos);
-      } else {
-        userVideos.addAll(newVideos);
-      }
-
+      videos.addAll(newVideos);
     } catch (e) {
-      print("Lỗi trong fetchUserVideos: $e");
+      print('Failed to load more videos: $e');
     } finally {
-      if (isRefresh) isVideosLoading.value = false;
       isLoadingMore.value = false;
     }
   }
 
   // ✅ SỬA LỖI: Sao chép logic map vào đây để controller tự hoạt động
-  List<Video> _mapVideoResponse(List<Map<String, dynamic>> response, Set<String> followedUserIds) {
+  List<Video> _mapVideoResponse(List<Map<String, dynamic>> response, RxSet<String> followedUserIds) {
     return response.map((item) {
       final profile = item['profiles'];
       if (profile == null) return null;
@@ -132,14 +93,8 @@ class VideoUserController extends GetxController {
         initialCommentCount: commentsCount,
         initialIsLiked: isLiked,
         initialIsFollowed: followedUserIds.contains(item['user_id']),
+        createdAt: DateTime.tryParse(item['created_at']) ?? DateTime.now(),
       );
     }).whereType<Video>().toList();
-  }
-
-  void toggleFollow() {
-    if (profileUserId.value.isNotEmpty) {
-      followService.toggleFollow(profileUserId.value);
-      isFollowing.value = followService.isFollowing(profileUserId.value);
-    }
   }
 }

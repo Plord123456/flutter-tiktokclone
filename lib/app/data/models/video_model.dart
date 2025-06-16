@@ -10,11 +10,14 @@ class Video {
   final String profilePhoto;
   final String postedById;
   final String thumbnailUrl;
-
+  final DateTime createdAt;
   // Rx-Values for reactive UI updates
   late final RxInt likeCount;
   late final RxInt commentCount;
   late final RxBool isLikedByCurrentUser;
+
+  // New field for follow status
+  final bool isFollowed;
 
   // Danh sách tags
   final List<Tag> tags;
@@ -24,18 +27,19 @@ class Video {
     required this.videoUrl,
     required this.title,
     required this.username,
+    required this.createdAt,
     required this.profilePhoto,
     required this.postedById,
     required this.thumbnailUrl,
     required int initialLikeCount,
     required int initialCommentCount,
     required bool initialIsLiked,
-    this.tags = const [], required bool initialIsFollowed, // Danh sách tags mặc định rỗng
-  }) {
-    likeCount = initialLikeCount.obs;
-    commentCount = initialCommentCount.obs;
-    isLikedByCurrentUser = initialIsLiked.obs;
-  }
+    required bool initialIsFollowed, // Add required
+    this.tags = const [],
+  })  : isFollowed = initialIsFollowed, // Assign to field
+        likeCount = initialLikeCount.obs,
+        commentCount = initialCommentCount.obs,
+        isLikedByCurrentUser = initialIsLiked.obs;
 
   factory Video.fromJson(Map<String, dynamic> json) {
     try {
@@ -44,6 +48,7 @@ class Video {
 
       return Video(
         id: json['id'] as String? ?? '',
+        createdAt: DateTime.parse(json['created_at'] as String? ?? DateTime.now().toIso8601String()),
         videoUrl: json['video_url'] as String? ?? '',
         title: json['title'] as String? ?? '',
         thumbnailUrl: json['thumbnail_url'] as String? ?? '',
@@ -69,8 +74,9 @@ class Video {
         initialLikeCount: 0,
         initialCommentCount: 0,
         initialIsLiked: false,
-        tags: [],
         initialIsFollowed: false,
+        tags: [],
+        createdAt: DateTime.now(),
       );
     }
   }
