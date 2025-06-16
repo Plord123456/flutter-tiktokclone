@@ -7,7 +7,6 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../app/data/models/video_model.dart';
 import '../app/modules/home/controllers/home_controller.dart';
 import '../app/routes/app_pages.dart';
-// ✅ SỬA LỖI: Import file comment sheet đúng cách
 import 'comment_sheet.dart';
 
 class VideoPlayerItem extends StatefulWidget {
@@ -21,20 +20,14 @@ class VideoPlayerItem extends StatefulWidget {
 class _VideoPlayerItemState extends State<VideoPlayerItem> {
   final HomeController controller = Get.find();
   late CachedVideoPlayerPlusController _videoController;
+
   final isPlaying = false.obs;
 
-  // ✅ SỬA LỖI: Xóa các biến state cục bộ không cần thiết.
-  // final likeCount = 0.obs;
-  // final isLiked = false.obs;
-  // final commentCount = 0.obs;
 
   @override
   void initState() {
     super.initState();
-    // ✅ SỬA LỖI: Không cần sao chép giá trị ra biến cục bộ nữa.
-    // likeCount.value = widget.video.likeCount.value;
-    // isLiked.value = widget.video.isLikedByCurrentUser.value;
-    // commentCount.value = widget.video.commentCount.value;
+
 
     _videoController = CachedVideoPlayerPlusController.network(
       widget.video.videoUrl,
@@ -60,29 +53,13 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
   void _togglePlayPause() => isPlaying.value ? _videoController.pause() : _videoController.play();
 
   void _handleLike() {
-    // ✅ SỬA LỖI: Tương tác trực tiếp với các thuộc tính Rx của Video model.
-    widget.video.isLikedByCurrentUser.toggle();
-    if (widget.video.isLikedByCurrentUser.value) {
-      widget.video.likeCount.value++;
-    } else {
-      widget.video.likeCount.value--;
-    }
     controller.toggleLike(widget.video.id);
   }
 
-  // ✅ SỬA LỖI: Sử dụng hàm showCommentSheet đã định nghĩa sẵn
   void _handleCommentSheet() {
+    // Tạm dừng video khi mở comment sheet
     _videoController.pause();
-    // Gọi hàm helper để hiển thị sheet
     showCommentSheet(context, videoId: widget.video.id);
-    // Logic cập nhật comment count sẽ được xử lý trong CommentController
-    // hoặc bạn có thể lắng nghe kết quả trả về nếu cần.
-    // Sau khi sheet đóng, tự động play lại video
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _videoController.play();
-      }
-    });
   }
 
   @override
@@ -91,8 +68,11 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
       key: Key(widget.video.id),
       onVisibilityChanged: (info) {
         if (!mounted) return;
-        if (info.visibleFraction > 0.8 && !isPlaying.value) _videoController.play();
-        else if (info.visibleFraction < 0.8 && isPlaying.value) _videoController.pause();
+        if (info.visibleFraction > 0.8 && !isPlaying.value) {
+          _videoController.play();
+        } else if (info.visibleFraction < 0.8 && isPlaying.value) {
+          _videoController.pause();
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -101,7 +81,7 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
           children: [
             _buildVideoPlayer(),
             _VideoInfoOverlay(video: widget.video),
-            // ✅ SỬA LỖI: Truyền trực tiếp các thuộc tính Rx từ Video model
+            // ✅ SỬA LỖI: Truyền trực tiếp các thuộc tính Rx từ `widget.video`
             _ActionButtonsColumn(
               video: widget.video,
               onLike: _handleLike,
@@ -150,7 +130,7 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
   );
 }
 
-// Các widget con không cần thay đổi nhiều vì chúng đã nhận giá trị Rx
+// Các widget con không cần thay đổi vì chúng đã được thiết kế để nhận giá trị Rx.
 class _ActionButtonsColumn extends StatelessWidget {
   final Video video;
   final VoidCallback onLike;
@@ -189,9 +169,6 @@ class _ActionButtonsColumn extends StatelessWidget {
   }
 }
 
-// Các widget con khác (ProfileAvatarButton, LikeButton, VideoInfoOverlay, ActionButton) giữ nguyên
-// vì chúng đã được thiết kế để nhận và hiển thị dữ liệu một cách chính xác.
-// ... (Dán các widget con còn lại vào đây) ...
 class _ProfileAvatarButton extends StatelessWidget {
   final String postedById;
   final String profilePhoto;

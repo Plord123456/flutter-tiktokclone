@@ -1,46 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:tiktok_clone/widgets/video_player_item.dart';
 
-import '../../../../widgets/video_player_item.dart';
 import '../controllers/user_feed_controller.dart';
 
 class UserFeedView extends GetView<UserFeedController> {
-  const UserFeedView({Key? key}) : super(key: key);
-
+  const UserFeedView({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Feed video cuộn dọc
-          PageView.builder(
-            controller: controller.pageController,
-            scrollDirection: Axis.vertical,
-            itemCount: controller.videos.length,
-            onPageChanged: (index) {
-              // Khi cuộn gần đến cuối, tải thêm video
-              if (index >= controller.videos.length - 3) {
-                controller.loadMoreVideos();
-              }
-            },
-            itemBuilder: (context, index) {
-              final video = controller.videos[index];
-              return VideoPlayerItem(
-                video: video,
-              );
-            },
-          ),
-          // Nút Back
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            left: 10,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-              onPressed: () => Get.back(),
-            ),
-          ),
-        ],
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Get.back(),
+        ),
+      ),
+      body: PageView.builder(
+        controller: controller.pageController,
+        scrollDirection: Axis.vertical,
+        physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
+        itemCount: controller.videos.length,
+        itemBuilder: (context, index) {
+          final video = controller.videos[index];
+          return VideoPlayerItem(video: video);
+        },
+        onPageChanged: (index) {
+          if (index == controller.videos.length - 2) {
+            controller.loadMoreVideos();
+          }
+        },
       ),
     );
   }
