@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/comments_model.dart';
 
+
 class CommentController extends GetxController {
   final String videoId;
   CommentController({required this.videoId});
@@ -33,16 +34,24 @@ class CommentController extends GetxController {
       isLoading.value = true;
       if (currentUserId == null) return;
 
-      // ✅ SỬA LỖI: Xóa bỏ phần truy vấn đến bảng "comment_likes" không tồn tại.
       final response = await supabase
           .from('comments')
           .select(_commentSelectQuery)
           .eq('video_id', videoId)
           .order('created_at', ascending: true);
 
-      // Bây giờ, chúng ta sẽ map dữ liệu trực tiếp mà không cần xử lý "like".
+      // ✅ THÊM LẠI: Lấy danh sách các bình luận mà người dùng hiện tại đã thích.
+      final likedCommentsResponse = await supabase
+          .from('comment_likes')
+          .select('comment_id')
+          .eq('user_id', currentUserId!);
+
+      final likedCommentIds =
+      likedCommentsResponse.map((like) => like['comment_id'].toString()).toSet();
+
       final allComments = response
-          .map((json) => Comment.fromJson(json))
+          .map((json) => Comment.fromJson(json)
+          .copyWith(isLiked: likedCommentIds.contains(json['id'].toString())))
           .toList();
 
       final commentMap = {for (var c in allComments) c.id: c};
@@ -101,10 +110,7 @@ class CommentController extends GetxController {
   Future<void> deleteComment(String commentId) async {
     try {
       final commentIdAsInt = int.tryParse(commentId);
-      if (commentIdAsInt == null) {
-        Get.snackbar("Lỗi", "ID bình luận không hợp lệ.");
-        return;
-      }
+      if (commentIdAsInt == null) return;
       await supabase.from('comments').delete().eq('id', commentIdAsInt);
       if (_deleteCommentRecursive(commentId, comments)) {
         Get.back();
@@ -115,23 +121,45 @@ class CommentController extends GetxController {
     }
   }
 
-  // ✅ SỬA LỖI: Hàm này sẽ được giữ lại nhưng không có logic bên trong.
-  // Widget của bạn vẫn sẽ gọi nó, nhưng sẽ không có lỗi xảy ra.
-  void toggleLike(String commentId) {
-    // Tạm thời không làm gì cả để tránh lỗi.
-    // Nếu muốn có chức năng này, bạn cần tạo bảng `comment_likes` trong DB.
-    print("Chức năng thích bình luận đang được tạm tắt.");
-  }
+  /// ✅ THÊM LẠI: Hàm toggleLike cho bình luận, sử dụng bảng 'comment_likes'
+  Future<void> toggleLike(String commentId) async {
+    if (currentUserId == null) return;
 
+    final comment = _findCommentById(commentId);
+    if (comment == null) return;
+
+    final commentIdAsInt = int.tryParse(commentId);
+    if (commentIdAsInt == null) return;
+
+    final isCurrentlyLiked = comment.isLiked.value;
+    comment.isLiked.toggle();
+
+    try {
+      if (isCurrentlyLiked) {
+        // Nếu đang like -> unlike (xóa record)
+        await supabase.from('comment_likes').delete().match({
+          'comment_id': commentIdAsInt,
+          'user_id': currentUserId!,
+        });
+      } else {
+        // Nếu chưa like -> like (thêm record)
+        await supabase.from('comment_likes').insert({
+          'comment_id': commentIdAsInt,
+          'user_id': currentUserId!,
+        });
+      }
+    } catch (e) {
+      comment.isLiked.toggle();
+      Get.snackbar("Lỗi", "Thao tác thất bại, vui lòng thử lại.");
+    }
+  }
 
   // --- CÁC HÀM HELPER ---
 
   void _addCommentToList(Comment comment) {
     if (replyingTo.value != null) {
       final parent = comments.firstWhereOrNull((c) => c.id == replyingTo.value!.id);
-      if (parent != null) {
-        parent.replies.add(comment);
-      }
+      parent?.replies.add(comment);
     } else {
       comments.add(comment);
     }
@@ -156,6 +184,24 @@ class CommentController extends GetxController {
       if (_deleteCommentRecursive(id, commentList[i].replies)) return true;
     }
     return false;
+  }
+
+  Comment? _findCommentById(String id) {
+    for (var comment in comments) {
+      if (comment.id == id) return comment;
+      final foundInReply = _findCommentInReplies(id, comment.replies);
+      if (foundInReply != null) return foundInReply;
+    }
+    return null;
+  }
+
+  Comment? _findCommentInReplies(String id, List<Comment> replies) {
+    for (var reply in replies) {
+      if (reply.id == id) return reply;
+      final foundInReply = _findCommentInReplies(id, reply.replies);
+      if (foundInReply != null) return foundInReply;
+    }
+    return null;
   }
 
   void startReply(Comment comment) {
