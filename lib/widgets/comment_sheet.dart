@@ -228,6 +228,7 @@ class CommentItem extends GetView<CommentController> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     CircleAvatar(
+
                       radius: 18,
                       backgroundImage: comment.avatarUrl.value.isNotEmpty ? CachedNetworkImageProvider(comment.avatarUrl.value) : null,
                       child: comment.avatarUrl.isEmpty ? Text(comment.username.value.isNotEmpty ? comment.username.value[0].toUpperCase() : '') : null,                    ),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:visibility_detector/visibility_detector.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // Thêm import này
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../app/data/models/profile_model.dart';
 import '../app/data/models/video_model.dart';
@@ -27,15 +27,13 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
   @override
   void initState() {
     super.initState();
-    _videoController = CachedVideoPlayerPlusController.network(
-      widget.video.videoUrl,
-      videoPlayerOptions: VideoPlayerOptions(allowBackgroundPlayback: false),
-    )..initialize().then((_) {
-      if (mounted) {
-        _videoController.setLooping(true);
-        setState(() {}); // Rebuild để hiển thị video sau khi khởi tạo
-      }
-    });
+    _videoController = CachedVideoPlayerPlusController.network(widget.video.videoUrl)
+      ..initialize().then((_) {
+        if (mounted) {
+          _videoController.setLooping(true);
+          setState(() {});
+        }
+      });
     _videoController.addListener(() {
       if (mounted) isPlaying.value = _videoController.value.isPlaying;
     });
@@ -48,11 +46,8 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
   }
 
   void _togglePlayPause() => isPlaying.value ? _videoController.pause() : _videoController.play();
-
   void _handleLike() => controller.toggleLike(widget.video.id);
-
   void _handleFollow() => controller.toggleFollow(widget.video.author.id);
-
   void _handleCommentSheet() {
     _videoController.pause();
     showCommentSheet(context, videoId: widget.video.id);
@@ -73,57 +68,37 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
       },
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: Stack(
-          children: [
-            _buildVideoPlayer(),
-            // Overlay gradient để chữ nổi bật hơn
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.black.withOpacity(0.3), Colors.transparent],
-                  begin: Alignment.topCenter,
-                  end: Alignment.center,
-                ),
+        body: Stack(children: [
+          _buildVideoPlayer(),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.black.withOpacity(0.3), Colors.transparent],
+                begin: Alignment.topCenter, end: Alignment.center,
               ),
             ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.black.withOpacity(0.5), Colors.transparent],
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.center,
-                ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.black.withOpacity(0.5), Colors.transparent],
+                begin: Alignment.bottomCenter, end: Alignment.center,
               ),
             ),
-            // Các thành phần UI
-            _buildVideoPlayer(),
-            Positioned.fill(
-              child: GestureDetector(onTap: _togglePlayPause),
-            ),
-            Positioned(
-              left: 16,
-              right: 80,
-              bottom: 60, // Nâng lên trên progress bar
-              child: _VideoInfoOverlay(video: widget.video),
-            ),
-            _ActionButtonsColumn(
-              video: widget.video,
-              onLike: _handleLike,
-              onFollow: _handleFollow,
-              onComment: _handleCommentSheet,
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _buildVideoProgressBar(),
-            ),
-          ],
-        ),
+          ),
+          Positioned.fill(child: GestureDetector(onTap: _togglePlayPause)),
+          Positioned(
+            left: 16, right: 80, bottom: 60,
+            child: _VideoInfoOverlay(video: widget.video),
+          ),
+          _ActionButtonsColumn(
+            video: widget.video, onLike: _handleLike, onFollow: _handleFollow, onComment: _handleCommentSheet,
+          ),
+          Positioned(bottom: 0, left: 0, right: 0, child: _buildVideoProgressBar()),
+        ]),
       ),
     );
   }
-
   Widget _buildVideoPlayer() {
     return Obx(() => Stack(
       alignment: Alignment.center,
@@ -161,24 +136,19 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
   );
 }
 
+
 class _ActionButtonsColumn extends StatelessWidget {
   final Video video;
   final VoidCallback onLike;
   final VoidCallback onFollow;
   final VoidCallback onComment;
 
-  const _ActionButtonsColumn({
-    required this.video,
-    required this.onLike,
-    required this.onFollow,
-    required this.onComment,
-  });
+  const _ActionButtonsColumn({required this.video, required this.onLike, required this.onFollow, required this.onComment});
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      right: 10,
-      bottom: 60, // Nâng lên trên progress bar
+      right: 10, bottom: 60,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -186,9 +156,7 @@ class _ActionButtonsColumn extends StatelessWidget {
           const SizedBox(height: 25),
           _LikeButton(onTap: onLike, isLiked: video.isLikedByCurrentUser, likeCount: video.likeCount),
           const SizedBox(height: 25),
-          GestureDetector(
-              onTap: onComment,
-              child: Obx(() => _ActionButton(icon: Iconsax.message, text: video.commentCount.value.toString()))),
+          GestureDetector(onTap: onComment, child: Obx(() => _ActionButton(icon: Iconsax.message, text: video.commentCount.value.toString()))),
           const SizedBox(height: 25),
           const _ActionButton(icon: Iconsax.send_1, text: 'Share'),
         ],
@@ -197,60 +165,34 @@ class _ActionButtonsColumn extends StatelessWidget {
   }
 }
 
-class _ProfileAvatarButton extends StatelessWidget {
+class _ProfileAvatarButton extends GetView<HomeController> {
   final Profile author;
   final VoidCallback onFollow;
-  final HomeController controller = Get.find(); // Vẫn có thể dùng để lấy currentUserId
 
-  _ProfileAvatarButton({required this.author, required this.onFollow});
+  const _ProfileAvatarButton({required this.author, required this.onFollow});
 
   @override
   Widget build(BuildContext context) {
     final bool isOwnVideo = author.id == controller.currentUserId;
-
-    return Column(
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            GestureDetector(
-              onTap: () => Get.toNamed(Routes.PROFILE, arguments: {'userId': author.id}),
-              child: Obx(() => CircleAvatar(
-                radius: 25,
-                backgroundColor: Colors.white,
-                backgroundImage: author.avatarUrl.value.isNotEmpty
-                    ? CachedNetworkImageProvider(author.avatarUrl.value)
-                    : null,
-                child: author.avatarUrl.value.isEmpty
-                    ? const Icon(Iconsax.user, color: Colors.grey, size: 30)
-                    : null,
-              )),
-            ),
-            if (!isOwnVideo)
-              Obx(() => !controller.followService.isFollowing(author.id)
-                  ? Positioned(
-                bottom: -10,
-                child: GestureDetector(
-                  onTap: onFollow,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.black, width: 1.5),
-                    ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 16),
-                  ),
-                ),
-              )
-                  : const SizedBox.shrink()),
-          ],
+    return Column(children: [
+      Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
+        GestureDetector(
+          onTap: () => Get.toNamed(Routes.PROFILE, arguments: {'userId': author.id}),
+          child: Obx(() => CircleAvatar(
+            radius: 25, backgroundColor: Colors.white,
+            backgroundImage: author.avatarUrl.value.isNotEmpty ? CachedNetworkImageProvider(author.avatarUrl.value) : null,
+            child: author.avatarUrl.value.isEmpty ? const Icon(Iconsax.user, color: Colors.grey, size: 30) : null,
+          )),
         ),
-      ],
-    );
+        if (!isOwnVideo)
+          Obx(() => !controller.followService.isFollowing(author.id)
+              ? Positioned(bottom: -10, child: GestureDetector(onTap: onFollow, child: Container(padding: const EdgeInsets.all(2), decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 1.5)), child: const Icon(Icons.add, color: Colors.white, size: 16))))
+              : const SizedBox.shrink()),
+      ]),
+    ]);
   }
 }
+
 
 class _LikeButton extends StatelessWidget {
   final VoidCallback onTap;
@@ -282,14 +224,8 @@ class _VideoInfoOverlay extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          '@${video.author.username.value}',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white, shadows: [Shadow(blurRadius: 1)]),
-        ),
-        if (video.title.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(video.title, style: const TextStyle(color: Colors.white, shadows: [Shadow(blurRadius: 1)])),
-        ]
+        Text('@${video.author.username.value}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white, shadows: [Shadow(blurRadius: 1)])),
+        if (video.title.isNotEmpty) ...[const SizedBox(height: 8), Text(video.title, style: const TextStyle(color: Colors.white, shadows: [Shadow(blurRadius: 1)]))]
       ],
     ));
   }

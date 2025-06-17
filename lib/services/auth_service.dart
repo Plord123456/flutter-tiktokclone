@@ -9,7 +9,6 @@ class AuthService extends GetxService {
   final supabase = Supabase.instance.client;
 
   /// ✅ NGUỒN DỮ LIỆU TRUNG TÂM CHO PROFILE
-  /// Mọi nơi trong app sẽ lắng nghe biến này để lấy thông tin user.
   final Rxn<Profile> userProfile = Rxn<Profile>();
 
   // Getter tiện ích
@@ -20,54 +19,46 @@ class AuthService extends GetxService {
   void onInit() {
     super.onInit();
 
-    // Ngay khi service khởi tạo, kiểm tra và tải profile nếu đã đăng nhập
     if (isLoggedIn) {
       _fetchUserProfile();
     }
 
-    // Lắng nghe các thay đổi về trạng thái đăng nhập (login/logout)
     supabase.auth.onAuthStateChange.listen((data) {
       final User? user = data.session?.user;
       if (user != null) {
-        // Nếu user đăng nhập, fetch profile của họ
-        print('User is logged in. Fetching profile...');
         _fetchUserProfile();
       } else {
-        // Nếu user đăng xuất, xóa profile
-        print('User is logged out. Clearing profile.');
         userProfile.value = null;
       }
     });
   }
 
-  /// Hàm private để tải profile từ DB và cập nhật state
   Future<void> _fetchUserProfile() async {
     if (currentUserId.isEmpty) return;
     try {
       final response = await supabase
           .from('profiles')
-          .select() // Có thể thêm các count() vào đây nếu cần
+          .select('*, post_count:videos(count)') // Có thể thêm các count khác nếu cần
           .eq('id', currentUserId)
           .single();
       userProfile.value = Profile.fromJson(response);
     } catch (e) {
-      print("Lỗi khi fetch user profile trong AuthService: $e");
+      print("AuthService Error fetching profile: $e");
       userProfile.value = null;
     }
   }
 
-  /// ✅ Hàm này được gọi từ màn hình Edit Profile sau khi cập nhật thành công
-  void updateLocalProfile({required String newUsername, required String newFullName}) {
+  void updateLocalProfile({required String newUsername, required String newFullName, String? newAvatarUrl}) {
     if (userProfile.value != null) {
-      // Cập nhật giá trị trong service
       userProfile.value!.username.value = newUsername;
       userProfile.value!.fullName.value = newFullName;
-      // Dòng này không thực sự cần thiết nếu các widget dùng Obx,
-      // nhưng có thể hữu ích trong một số trường hợp phức tạp.
-      // userProfile.refresh(); 
-      Get.snackbar('Thành công', 'Thông tin đã được cập nhật cục bộ!');
+      if (newAvatarUrl != null) {
+        userProfile.value!.avatarUrl.value = newAvatarUrl;
+      }
+      Get.snackbar('Thành công', 'Thông tin đã được cập nhật!');
     }
   }
+
 
   // --- CÁC HÀM XÁC THỰC (giữ nguyên logic của bạn vì nó đã tốt) ---
 
@@ -107,7 +98,6 @@ class AuthService extends GetxService {
     try {
       await GoogleSignIn().signOut();
       await supabase.auth.signOut();
-      // onAuthStateChange sẽ tự động xóa profile, chúng ta chỉ cần chuyển hướng
       Get.offAllNamed(Routes.LOGIN); // Chuyển về trang đăng nhập
     } catch (e) {
       Get.snackbar('Lỗi Đăng Xuất', e.toString());

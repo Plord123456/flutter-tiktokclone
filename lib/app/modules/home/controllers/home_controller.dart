@@ -1,19 +1,16 @@
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-// Import các model và service cần thiết
-import '../../../../services/auth_service.dart';
-import '../../../../services/follow_service.dart';
-import '../../../data/models/profile_model.dart';
-import '../../../data/models/video_model.dart';
+import 'package:tiktok_clone/app/data/models/profile_model.dart';
+import 'package:tiktok_clone/app/data/models/video_model.dart';
+import 'package:tiktok_clone/services/auth_service.dart';
+import 'package:tiktok_clone/services/follow_service.dart';
 
 class HomeController extends GetxController {
   final supabase = Supabase.instance.client;
   final followService = Get.find<FollowService>();
   final authService = Get.find<AuthService>();
 
-  // --- State Variables ---
   final videoList = <Video>[].obs;
-  // Map để cache các profile của user, giúp UI reactive
   final RxMap<String, Profile> userProfiles = <String, Profile>{}.obs;
 
   final isLoading = true.obs;
@@ -61,10 +58,10 @@ class HomeController extends GetxController {
       final from = refresh ? 0 : videoList.length;
       final to = from + _videoPageSize - 1;
 
-      // ✅ FIX: Chỉ định rõ mối quan hệ cần dùng để join bảng `profiles`
+      // ✅ FIX: Chỉ định rõ mối quan hệ join để tránh lỗi
       final response = await supabase.from('videos').select('''
         id, video_url, title, thumbnail_url, user_id, created_at,
-        profiles!videos_user_id_fkey(id, username, avatar_url, full_name), 
+        profiles!videos_user_id_fkey(*), 
         likes(user_id),
         comments_count:comments(count)
       ''').order('created_at', ascending: false).range(from, to);
@@ -76,11 +73,9 @@ class HomeController extends GetxController {
         final profileData = item['profiles'];
         if (profileData == null) continue;
 
-        // Tạo và cache Profile object
         final profile = Profile.fromJson(profileData);
         newProfiles[profile.id] = profile;
 
-        // Tạo Video object
         final video = Video.fromSupabase(
           item,
           currentUserId: currentUserId,
@@ -106,14 +101,13 @@ class HomeController extends GetxController {
       if (refresh) rethrow;
     }
   }
-  Future<void> toggleLike(String videoId) async {
-    if (currentUserId.isEmpty) return;
+
+  void toggleLike(String videoId) async {
     final video = videoList.firstWhereOrNull((v) => v.id == videoId);
     if (video == null) return;
 
     final isCurrentlyLiked = video.isLikedByCurrentUser.value;
-    // Optimistic UI update
-    video.isLikedByCurrentUser.value = !isCurrentlyLiked;
+    video.isLikedByCurrentUser.toggle();
     video.likeCount.value += isCurrentlyLiked ? -1 : 1;
 
     try {
@@ -123,14 +117,12 @@ class HomeController extends GetxController {
         await supabase.from('likes').insert({'video_id': videoId, 'user_id': currentUserId});
       }
     } catch (e) {
-      // Rollback on error
-      video.isLikedByCurrentUser.value = isCurrentlyLiked;
+      video.isLikedByCurrentUser.toggle();
       video.likeCount.value += isCurrentlyLiked ? 1 : -1;
-      Get.snackbar('Lỗi', 'Không thể cập nhật lượt thích.');
     }
   }
 
-  void toggleFollow(String userId) {
-    followService.toggleFollow(userId);
+  void toggleFollow(String userIdToFollow) {
+    followService.toggleFollow(userIdToFollow);
   }
 }
