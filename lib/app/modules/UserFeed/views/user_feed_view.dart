@@ -25,11 +25,22 @@ class UserFeedView extends GetView<UserFeedController> {
         itemCount: controller.videos.length,
         itemBuilder: (context, index) {
           final video = controller.videos[index];
-          return VideoPlayerItem(video: video as Video);
-          },
+          // VideoPlayerItem chịu trách nhiệm hiển thị từng video
+          return VideoPlayerItem(video: video);
+        },
+        // ✅ ĐÂY LÀ PHẦN SỬA LỖI QUAN TRỌNG NHẤT
         onPageChanged: (index) {
-          if (index == controller.videos.length - 2) {
-            controller.loadMoreVideos();
+          // Điều kiện để tải thêm video (khi người dùng lướt gần đến cuối)
+          if (index >= controller.videos.length - 2 && controller.hasMoreVideos.value) {
+
+            // Dùng addPostFrameCallback để gọi hàm loadMoreVideos MỘT CÁCH AN TOÀN
+            // Nó sẽ thực thi sau khi frame hiện tại đã được vẽ xong.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              // Thêm một lần kiểm tra nữa để chắc chắn không gọi nhiều lần khi không cần thiết
+              if (!controller.isLoadingMore.value) {
+                controller.loadMoreVideos();
+              }
+            });
           }
         },
       ),

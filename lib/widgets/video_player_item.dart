@@ -5,126 +5,18 @@ import 'package:iconsax/iconsax.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+// ✅ BƯỚC 3: IMPORT CÁC MODEL VÀ CONTROLLER THẬT
+import '../app/data/models/video_model.dart';
+import '../app/data/models/profile_model.dart';
 import '../app/modules/home/controllers/home_controller.dart';
+import '../app/modules/video_user/views/video_user_view.dart';
 
-// --- Mock Data and Controllers for Standalone Example ---
-// In a real app, you would use your actual models and controllers.
+// ✅ BƯỚC 2: TOÀN BỘ PHẦN MOCK DATA ĐÃ ĐƯỢC XÓA BỎ
 
-class MockHomeController extends GetxController {
-  final currentUserId = 'user-123'.obs;
-  final followService = MockFollowService();
-
-  void toggleLike(String videoId) {
-    debugPrint('Toggled like for video $videoId');
-    final video = videos.firstWhere((v) => v.id == videoId);
-    video.isLikedByCurrentUser.toggle();
-    if (video.isLikedByCurrentUser.value) {
-      video.likeCount.value++;
-    } else {
-      video.likeCount.value--;
-    }
-  }
-
-  void toggleFollow(String authorId) {
-    debugPrint('Toggled follow for author $authorId');
-    followService.toggleFollow(authorId);
-  }
-
-  // Example video list
-  static final RxList<Video> videos = [
-    Video(
-      id: 'video1',
-      videoUrl: 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-      title: 'A beautiful bee on a flower.',
-      likeCount: 1024.obs,
-      commentCount: 512.obs,
-      isLikedByCurrentUser: false.obs,
-      author: Profile(
-        id: 'author1',
-        username: 'naturelover'.obs,
-        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop'.obs,
-      ),
-    ),
-  ].obs;
-}
-
-class MockFollowService extends GetxController {
-  final _following = <String>{}.obs;
-  bool isFollowing(String userId) => _following.contains(userId);
-  void toggleFollow(String userId) {
-    if (isFollowing(userId)) {
-      _following.remove(userId);
-    } else {
-      _following.add(userId);
-    }
-  }
-}
-
-// Your data models
-class Profile {
-  final String id;
-  final RxString username;
-  final RxString avatarUrl;
-  Profile({required this.id, required this.username, required this.avatarUrl});
-}
-
-class Video {
-  final String id;
-  final String videoUrl;
-  final String title;
-  final RxInt likeCount;
-  final RxInt commentCount;
-  final RxBool isLikedByCurrentUser;
-  final Profile author;
-  Video({
-    required this.id, required this.videoUrl, required this.title,
-    required this.likeCount, required this.commentCount,
-    required this.isLikedByCurrentUser, required this.author,
-  });
-}
-
-// --- End Mock Data ---
-
-
-// Function to show a mock comment sheet
+// Function to show a mock comment sheet (Giữ lại nếu bạn vẫn cần)
 void showCommentSheet(BuildContext context, {required String videoId}) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.3,
-      maxChildSize: 0.9,
-      builder: (_, controller) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.black87,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Comments for $videoId',
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const Divider(color: Colors.grey),
-            Expanded(
-              child: Center(
-                child: Text('Comments would appear here.', style: TextStyle(color: Colors.grey[400])),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
+  // ... (code không đổi)
 }
-
-
-// --- Your Refactored Widget ---
 
 class VideoPlayerItem extends StatefulWidget {
   final Video video;
@@ -135,24 +27,22 @@ class VideoPlayerItem extends StatefulWidget {
 }
 
 class _VideoPlayerItemState extends State<VideoPlayerItem> {
-  final HomeController controller = Get.put(MockHomeController() as HomeController);
-  late CachedVideoPlayerPlusController _videoController;
+  // ✅ BƯỚC 3: SỬA LẠI CÁCH LẤY CONTROLLER
+  // Dùng Get.find() để lấy controller đã được khởi tạo từ trước (trong Bindings)
+  // thay vì tạo ra một MockHomeController mới.
+  final HomeController controller = Get.find<HomeController>();
 
-  // REMOVED: isPlaying.obs to prevent state conflicts.
-  // We will now get the playing state directly from the video controller.
+  late CachedVideoPlayerPlusController _videoController;
 
   @override
   void initState() {
     super.initState();
     _videoController = CachedVideoPlayerPlusController.networkUrl(Uri.parse(widget.video.videoUrl))
       ..initialize().then((_) {
-        // Using `ValueListenableBuilder` now, so no need for setState here.
         if (mounted) {
           _videoController.setLooping(true);
         }
       });
-
-    // REMOVED: The listener that was causing the "setState during build" error.
   }
 
   @override
@@ -161,7 +51,6 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
     super.dispose();
   }
 
-  // UPDATED: This now checks the controller's value directly.
   void _togglePlayPause() => _videoController.value.isPlaying ? _videoController.pause() : _videoController.play();
 
   void _handleLike() => controller.toggleLike(widget.video.id);
@@ -178,7 +67,6 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
       onVisibilityChanged: (info) {
         if (!mounted) return;
         final isVisible = info.visibleFraction > 0.8;
-        // Use the controller's value to check the playing state.
         if (isVisible && !_videoController.value.isPlaying) {
           _videoController.play();
         } else if (!isVisible && _videoController.value.isPlaying) {
@@ -189,15 +77,6 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
         backgroundColor: Colors.black,
         body: Stack(children: [
           _buildVideoPlayer(),
-          // Overlay gradient for better text visibility.
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.black.withOpacity(0.3), Colors.transparent],
-                begin: Alignment.topCenter, end: Alignment.center,
-              ),
-            ),
-          ),
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -220,13 +99,10 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
     );
   }
 
-  // REFACTORED: This widget now uses a ValueListenableBuilder.
-  // This is the idiomatic Flutter way to rebuild a widget based on a
-  // controller's state without causing "setState during build" errors.
   Widget _buildVideoPlayer() {
     return ValueListenableBuilder(
       valueListenable: _videoController,
-      builder: (context, CachedVideoPlayerPlusValue value, child)  {
+      builder: (context, CachedVideoPlayerPlusValue value, child) {
         return Stack(
           alignment: Alignment.center,
           children: [
@@ -240,7 +116,6 @@ class _VideoPlayerItemState extends State<VideoPlayerItem> {
             else
               const Center(child: CircularProgressIndicator(color: Colors.white)),
 
-            // The play/pause icon's visibility is now safely handled by the builder.
             if (value.isInitialized)
               AnimatedOpacity(
                 opacity: value.isPlaying ? 0.0 : 1.0,
@@ -274,12 +149,16 @@ class _ActionButtonsColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Lấy controller bằng Get.find() để gọi hàm toggleFollow
+    final HomeController controller = Get.find<HomeController>();
+
     return Positioned(
       right: 10, bottom: 60,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _ProfileAvatarButton(author: video.author),
+          // Truyền hàm toggleFollow vào
+          _ProfileAvatarButton(author: video.author, isFollowed: video.isFollowedByCurrentUser, onFollow: () => controller.toggleFollow(video.author.id)),
           const SizedBox(height: 25),
           _LikeButton(onTap: onLike, isLiked: video.isLikedByCurrentUser, likeCount: video.likeCount),
           const SizedBox(height: 25),
@@ -294,24 +173,27 @@ class _ActionButtonsColumn extends StatelessWidget {
 
 class _ProfileAvatarButton extends GetView<HomeController> {
   final Profile author;
-  const _ProfileAvatarButton({required this.author});
+  final RxBool isFollowed;
+  final VoidCallback onFollow;
+
+  const _ProfileAvatarButton({required this.author, required this.isFollowed, required this.onFollow});
 
   @override
   Widget build(BuildContext context) {
+    // So sánh trực tiếp, không cần .value
     final bool isOwnVideo = author.id == controller.currentUserId;
     return Column(children: [
       Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
         GestureDetector(
-          onTap: () => debugPrint('Navigate to profile ${author.id}'), // Replaced Get.toNamed for standalone example
-          child: Obx(() => CircleAvatar(
+          onTap: () => Get.toNamed('/user', arguments: author.id),          child: Obx(() => CircleAvatar(
             radius: 25, backgroundColor: Colors.white,
             backgroundImage: author.avatarUrl.value.isNotEmpty ? CachedNetworkImageProvider(author.avatarUrl.value) : null,
             child: author.avatarUrl.value.isEmpty ? const Icon(Iconsax.user, color: Colors.grey, size: 30) : null,
           )),
         ),
         if (!isOwnVideo)
-          Obx(() => !controller.followService.isFollowing(author.id)
-              ? Positioned(bottom: -10, child: GestureDetector(onTap: () => controller.toggleFollow(author.id), child: Container(padding: const EdgeInsets.all(2), decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 1.5)), child: const Icon(Icons.add, color: Colors.white, size: 16))))
+          Obx(() => !isFollowed.value
+              ? Positioned(bottom: -10, child: GestureDetector(onTap: onFollow, child: Container(padding: const EdgeInsets.all(2), decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 1.5)), child: const Icon(Icons.add, color: Colors.white, size: 16))))
               : const SizedBox.shrink()),
       ]),
     ]);

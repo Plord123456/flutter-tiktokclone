@@ -1,12 +1,12 @@
 import 'package:get/get.dart';
-import 'profile_model.dart';
+import 'profile_model.dart'; // <-- Quan trọng: import Profile model
 
 class Video {
   final String id, videoUrl, title, thumbnailUrl;
   final DateTime createdAt;
   final Profile author;
   late final RxInt likeCount, commentCount;
-  late final RxBool isLikedByCurrentUser, isFollowedByCurrentUser;
+  late final RxBool isLikedByCurrentUser, isFollowedByCurrentUser; // <-- Đổi tên từ isFollowed
 
   Video({
     required this.id, required this.videoUrl, required this.title,
@@ -17,7 +17,7 @@ class Video {
     likeCount = initialLikeCount.obs;
     commentCount = initialCommentCount.obs;
     isLikedByCurrentUser = initialIsLiked.obs;
-    isFollowedByCurrentUser = initialIsFollowed.obs;
+    isFollowedByCurrentUser = initialIsFollowed.obs; // <-- Đổi tên từ isFollowed
   }
 
   factory Video.fromSupabase(Map<String, dynamic> json, {

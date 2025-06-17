@@ -15,6 +15,7 @@ class LayoutBinding extends Bindings {
     Get.lazyPut<LayoutController>(
       () => LayoutController(),
     );
+
     Get.lazyPut<HomeController>(() => HomeController());
     Get.lazyPut<LoginController>(() => LoginController());
     Get.lazyPut<ProfileController>(() => ProfileController());

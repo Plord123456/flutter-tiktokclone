@@ -49,7 +49,7 @@ class AppPages {
       binding: ProfileBinding(),
     ),
     GetPage(
-      name: Routes.VIDEO_USER,
+      name: '/user',
       page: () => const VideoUserView(),
       binding: VideoUserBinding(), // Đảm bảo có binding để inject controller
     ),

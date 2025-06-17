@@ -33,10 +33,15 @@ class VideoUserController extends GetxController {
 
   @override
   void onInit() {
-    super.onInit(); // ✅ FIX 1: Gọi super.onInit()
-    final arguments = Get.arguments as Map<String, dynamic>?;
-    profileUserId.value = arguments?['userId'] ?? currentUserId;
+    super.onInit();
+    final arguments = Get.arguments;
 
+    // Giữ lại khối if/else này
+    if (arguments is String) {
+      profileUserId.value = arguments;
+    } else {
+      profileUserId.value = currentUserId;
+    }
     scrollController = ScrollController();
     scrollController.addListener(() {
       if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 300) {
@@ -50,7 +55,6 @@ class VideoUserController extends GetxController {
 
     fetchData();
   }
-
   @override
   void onClose() {
     scrollController.dispose();
@@ -109,11 +113,11 @@ class VideoUserController extends GetxController {
 
     try {
       var query = supabase.from('videos').select('''
-      id, video_url, title, thumbnail_url, created_at,
-      profiles!inner(id, username, avatar_url, full_name), 
-      likes(user_id),
-      comments_count:comments(count)
-    ''');
+    id, video_url, title, thumbnail_url, created_at,
+    profiles!videos_user_id_fkey(id, username, avatar_url, full_name),
+    likes(user_id),
+    comments_count:comments(count)
+  ''');
 
       // ✅ BƯỚC 1: ÁP DỤNG TẤT CẢ CÁC BỘ LỌC (FILTERING)
       query = query.eq('user_id', profileUserId.value);

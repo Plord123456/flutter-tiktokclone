@@ -24,7 +24,8 @@ class HomeView extends GetView<HomeController> {
             itemCount: controller.videoList.length,
             itemBuilder: (context, index) {
               final video = controller.videoList[index];
-              return VideoPlayerItem(video: video as Video);            },
+              return VideoPlayerItem(video: video );
+              },
             onPageChanged: (index) {
               // Tải thêm video khi người dùng cuộn gần đến cuối
               if (index == controller.videoList.length - 2) {

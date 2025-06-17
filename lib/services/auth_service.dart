@@ -48,14 +48,18 @@ class AuthService extends GetxService {
     }
   }
 
-  void updateLocalProfile({required String newUsername, required String newFullName, String? newAvatarUrl}) {
+  void updateLocalProfile({
+    required String newUsername,
+    required String newFullName,
+    String? newAvatarUrl, // <-- Thêm tham số này
+  }) {
     if (userProfile.value != null) {
       userProfile.value!.username.value = newUsername;
       userProfile.value!.fullName.value = newFullName;
-      if (newAvatarUrl != null) {
+      if (newAvatarUrl != null) { // <-- Thêm logic cập nhật avatar
         userProfile.value!.avatarUrl.value = newAvatarUrl;
       }
-      Get.snackbar('Thành công', 'Thông tin đã được cập nhật!');
+      userProfile.refresh();
     }
   }
 

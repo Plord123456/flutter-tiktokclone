@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:iconsax/iconsax.dart';
+import '../../../routes/app_pages.dart';
 import '../controllers/profile_controller.dart';
 
 class ProfileView extends GetView<ProfileController> {
@@ -44,7 +45,7 @@ class ProfileView extends GetView<ProfileController> {
                   const Text('Không có dữ liệu người dùng hoặc bạn chưa đăng nhập.'),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: controller.signOut,
+                    onPressed: () => Get.offAllNamed(Routes.LOGIN),
                     child: const Text('Đăng nhập'),
                   )
                 ],

@@ -36,46 +36,57 @@ class UserFeedController extends GetxController {
     super.onClose();
   }
 
-  /// ✅ HÀM LOADMOREVIDEOS ĐÃ ĐƯỢC VIẾT LẠI HOÀN TOÀN VÀ CHÍNH XÁC
+  /// ✅ HÀM LOADMOREVIDEOS ĐÃ ĐƯỢC HOÀN THIỆN
+
   Future<void> loadMoreVideos() async {
-    if (videos.isEmpty || isLoadingMore.value || !hasMoreVideos.value) return;
+    // 1. Các điều kiện kiểm tra vẫn giữ nguyên ở ngoài
+    if (videos.isEmpty || isLoadingMore.value || !hasMoreVideos.value) {
+      return;
+    }
 
-    isLoadingMore.value = true;
+    // 2. Toàn bộ logic gọi API và CẬP NHẬT STATE phải nằm bên trong callback này
+    // Nó sẽ trì hoãn việc thực thi cho đến khi frame hiện tại được vẽ xong.
+    Future.delayed(Duration.zero, () async {
 
-    try {
-      final lastVideo = videos.last;
-      // Lấy userId từ author của video
-      final userId = lastVideo.author.id;
+      // Kiểm tra lại lần nữa bên trong callback cho an toàn
+      if (isLoadingMore.value) return;
 
-      final response = await supabase
-          .from('videos')
-          .select('''
+      isLoadingMore.value = true;
+
+      try {
+        final lastVideo = videos.last;
+        final userId = lastVideo.author.id;
+
+        final response = await supabase
+            .from('videos')
+            .select('''
             id, video_url, title, thumbnail_url, created_at,
-            profiles!inner(id, username, avatar_url, full_name),
+            profiles!videos_user_id_fkey(id, username, avatar_url, full_name),
             likes(user_id),
             comments_count:comments(count)
           ''')
-          .eq('user_id', userId)
-          .lt('created_at', lastVideo.createdAt.toIso8601String())
-          .order('created_at', ascending: false) // Lấy các video mới hơn trước
-          .limit(_pageSize);
+            .eq('user_id', userId)
+            .lt('created_at', lastVideo.createdAt.toIso8601String())
+            .order('created_at', ascending: false)
+            .limit(_pageSize);
 
-      // ✅ TỰ MAP DỮ LIỆU, KHÔNG DÙNG HOMECONTROLLER
-      final newVideos = response.map((json) => Video.fromSupabase(
-          json,
-          currentUserId: currentUserId,
-          isFollowed: followService.isFollowing(userId)
-      )).toList();
+        final newVideos = response.map((json) => Video.fromSupabase(
+            json,
+            currentUserId: currentUserId,
+            isFollowed: followService.isFollowing(userId)
+        )).toList();
 
-      if (newVideos.length < _pageSize) {
-        hasMoreVideos.value = false;
+        if (newVideos.length < _pageSize) {
+          hasMoreVideos.value = false;
+        }
+
+        videos.addAll(newVideos);
+
+      } catch (e) {
+        print('Failed to load more videos: $e');
+      } finally {
+        isLoadingMore.value = false;
       }
-
-      videos.addAll(newVideos);
-    } catch (e) {
-      print('Failed to load more videos: $e');
-    } finally {
-      isLoadingMore.value = false;
-    }
+    });
   }
 }
