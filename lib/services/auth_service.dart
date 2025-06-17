@@ -38,7 +38,7 @@ class AuthService extends GetxService {
     try {
       final response = await supabase
           .from('profiles')
-          .select('*, post_count:videos(count)') // Có thể thêm các count khác nếu cần
+          .select() // <-- THAY BẰNG .select() ĐỂ LẤY TẤT CẢ DỮ LIỆU CƠ BẢN
           .eq('id', currentUserId)
           .single();
       userProfile.value = Profile.fromJson(response);

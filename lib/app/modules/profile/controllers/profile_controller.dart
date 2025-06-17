@@ -19,7 +19,7 @@ class ProfileController extends GetxController {
 
   final formKey = GlobalKey<FormState>();
   late TextEditingController nameController;
-  late TextEditingController dobController;
+  late TextEditingController dobController; // Date of Birth Controller
 
   Profile? get userProfile => authService.userProfile.value;
 
@@ -30,8 +30,9 @@ class ProfileController extends GetxController {
     super.onInit();
     nameController = TextEditingController();
     dobController = TextEditingController();
+    // Defer theme loading until after the first frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTheme(); // Defer theme loading after build
+      _loadTheme();
     });
   }
 
@@ -52,8 +53,10 @@ class ProfileController extends GetxController {
       Get.snackbar('Lỗi', 'Dữ liệu người dùng chưa sẵn sàng.');
       return;
     }
+    // Khởi tạo giá trị cho các controller trước khi chuyển trang
     nameController.text = profile.fullName.value;
-    // dobController.text = profile.dateOfBirth.value; // Uncomment if needed
+    // Giả sử model Profile của bạn có trường dateOfBirth
+    // dobController.text = profile.dateOfBirth.value;
     selectedImage.value = null;
 
     Get.to(() => const EditProfileView());
@@ -72,6 +75,8 @@ class ProfileController extends GetxController {
     isUpdating.value = true;
     try {
       String? newAvatarUrl = userProfile!.avatarUrl.value;
+
+      // 1. Upload ảnh mới nếu có
       if (selectedImage.value != null) {
         final imageFile = selectedImage.value!;
         final imageExtension = imageFile.path.split('.').last.toLowerCase();
@@ -82,31 +87,36 @@ class ProfileController extends GetxController {
           imageFile,
           fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
         );
+        // Lấy public URL mới và thêm timestamp để tránh cache
         newAvatarUrl = supabase.storage.from('avatars').getPublicUrl(filePath);
         newAvatarUrl = '$newAvatarUrl?t=${DateTime.now().millisecondsSinceEpoch}';
       }
 
+      // 2. Cập nhật dữ liệu trên Supabase Auth và bảng 'profiles'
       final updatedData = {
         'full_name': nameController.text.trim(),
         'avatar_url': newAvatarUrl,
+        // 'date_of_birth': dobController.text, // Thêm ngày sinh nếu cần
       };
-      await supabase.auth.updateUser(UserAttributes(data: updatedData));
 
+      // Cập nhật cả bảng 'profiles'
       await supabase
           .from('profiles')
-          .update({
-        'full_name': nameController.text.trim(),
-        'avatar_url': newAvatarUrl,
-      })
+          .update(updatedData)
           .eq('id', authService.currentUserId);
 
+      // 3. ✅ SỬA LỖI CHÍNH: Cập nhật dữ liệu local trong AuthService
+      // Truyền đầy đủ các giá trị mới vào hàm
       authService.updateLocalProfile(
-        newUsername: userProfile!.username.value,
+        newUsername: userProfile!.username.value, // username giả sử không đổi
         newFullName: nameController.text.trim(),
+        newAvatarUrl: newAvatarUrl,               // <-- Dòng quan trọng nhất đã được thêm
+        // newDateOfBirth: dobController.text,    // <-- Thêm nếu cần
       );
 
-      Get.back();
+      Get.back(); // Quay lại trang profile
       Get.snackbar('Thành công', 'Hồ sơ đã được cập nhật!');
+
     } catch (e) {
       Get.snackbar('Lỗi', 'Không thể cập nhật hồ sơ: ${e.toString()}');
     } finally {
