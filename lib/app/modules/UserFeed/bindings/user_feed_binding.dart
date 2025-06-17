@@ -8,7 +8,7 @@ class UserFeedBinding extends Bindings {
     final Map<String, dynamic> args = Get.arguments;
 
     Get.lazyPut<UserFeedController>(() => UserFeedController(
-      userId: args['userId'],
+
       initialVideos: args['initialVideos'],
       initialIndex: args['initialIndex'],
     ));

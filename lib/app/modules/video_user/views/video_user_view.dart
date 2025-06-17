@@ -13,10 +13,9 @@ class VideoUserView extends GetView<VideoUserController> {
 
   @override
   Widget build(BuildContext context) {
-    // ScrollController để phát hiện khi cuộn đến cuối và tải thêm
     final ScrollController scrollController = ScrollController();
     scrollController.addListener(() {
-      if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
+      if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 300) {
         controller.fetchUserVideos();
       }
     });
@@ -48,14 +47,14 @@ class VideoUserView extends GetView<VideoUserController> {
                 title: Text(profile.username, style: const TextStyle(fontWeight: FontWeight.bold)),
                 backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 pinned: true,
+                elevation: 0,
               ),
               SliverToBoxAdapter(child: _buildProfileHeader(profile)),
               _buildVideoGrid(),
-              // Widget hiển thị loading khi tải thêm
               SliverToBoxAdapter(
                 child: Obx(() => controller.isLoadingMore.value
                     ? const Padding(
-                  padding: EdgeInsets.all(16.0),
+                  padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                 )
                     : const SizedBox.shrink()),
@@ -126,7 +125,8 @@ class VideoUserView extends GetView<VideoUserController> {
           : ElevatedButton(
         onPressed: controller.toggleFollow,
         style: ElevatedButton.styleFrom(
-          backgroundColor: controller.isFollowing.value ? Colors.grey : Colors.red,
+          backgroundColor: controller.isFollowing.value ? Colors.grey.shade300 : Colors.red,
+          foregroundColor: controller.isFollowing.value ? Colors.black : Colors.white,
         ),
         child: Text(controller.isFollowing.value ? 'Unfollow' : 'Follow'),
       ),
@@ -135,28 +135,21 @@ class VideoUserView extends GetView<VideoUserController> {
 
   Widget _buildVideoGrid() {
     return Obx(() {
-      if (controller.isVideosLoading.value && controller.userVideos.isEmpty) {
+      if (controller.userVideos.isEmpty && !controller.isLoading.value) {
         return const SliverToBoxAdapter(child: Center(child: Padding(
           padding: EdgeInsets.all(32.0),
-          child: CircularProgressIndicator(),
-        )));
-      }
-      if (controller.userVideos.isEmpty) {
-        return const SliverToBoxAdapter(child: Center(child: Padding(
-          padding: EdgeInsets.all(32.0),
-          child: Text("Không có video nào."),
+          child: Text("Người dùng này chưa đăng video nào."),
         )));
       }
       return SliverGrid(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          childAspectRatio: 2 / 3, // Tỷ lệ cho video dọc
+          childAspectRatio: 2 / 3,
           crossAxisSpacing: 2,
           mainAxisSpacing: 2,
         ),
         delegate: SliverChildBuilderDelegate(
               (context, index) {
-            // ✅ SỬA LỖI: Gọi đúng tên biến `userVideos`
             final video = controller.userVideos[index];
             return GestureDetector(
               onTap: () => Get.toNamed(Routes.USER_FEED, arguments: {
@@ -167,6 +160,7 @@ class VideoUserView extends GetView<VideoUserController> {
               child: CachedNetworkImage(
                 imageUrl: video.thumbnailUrl,
                 fit: BoxFit.cover,
+                placeholder: (context, url) => Container(color: Colors.grey.shade200),
                 errorWidget: (context, error, stackTrace) => Container(color: Colors.grey.shade300),
               ),
             );
@@ -178,6 +172,9 @@ class VideoUserView extends GetView<VideoUserController> {
   }
 
   void _showVideoOptions(BuildContext context, Video video) {
-    // Giữ nguyên logic bottom sheet
+    Get.bottomSheet(
+      // Logic bottom sheet ở đây
+        Container()
+    );
   }
 }

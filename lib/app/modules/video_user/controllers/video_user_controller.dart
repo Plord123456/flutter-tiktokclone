@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tiktok_clone/app/data/models/profile_model.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 import '../../../data/models/video_model.dart';
+import '../../home/controllers/home_controller.dart';
 
 class VideoUserController extends GetxController {
   final supabase = Supabase.instance.client;
@@ -10,15 +11,13 @@ class VideoUserController extends GetxController {
 
   final Rx<String> profileUserId = ''.obs;
   final Rxn<Profile> userProfile = Rxn<Profile>();
-  final RxList<Video> userVideos = <Video>[].obs; // Giữ tên này để rõ ràng
+  final RxList<Video> userVideos = <Video>[].obs;
   final RxBool isFollowing = false.obs;
 
-  final RxBool isLoading = true.obs; // Một biến loading chính
-
-  // ✅ SỬA LỖI: Thêm các biến còn thiếu để quản lý tải thêm video
+  final RxBool isLoading = true.obs;
   final RxBool isLoadingMore = false.obs;
   final RxBool hasMoreVideos = true.obs;
-  final int _pageSize = 12; // Tăng pagesize cho grid view
+  final int _pageSize = 12;
 
   String get currentUserId => supabase.auth.currentUser?.id ?? '';
   bool get isMyProfile => currentUserId == profileUserId.value;
@@ -29,7 +28,6 @@ class VideoUserController extends GetxController {
     final arguments = Get.arguments as Map<String, dynamic>?;
     profileUserId.value = arguments?['userId'] ?? currentUserId;
 
-    // Lắng nghe thay đổi trạng thái follow từ service
     followService.followedUserIds.listen((followedIds) {
       isFollowing.value = followedIds.contains(profileUserId.value);
     });
@@ -70,7 +68,6 @@ class VideoUserController extends GetxController {
       userVideos.clear();
       hasMoreVideos.value = true;
     }
-    // Ngăn việc gọi API trùng lặp
     if (isLoading.value || isLoadingMore.value || !hasMoreVideos.value) return;
 
     isLoadingMore.value = true;
@@ -79,16 +76,22 @@ class VideoUserController extends GetxController {
       final from = userVideos.length;
       final to = from + _pageSize - 1;
 
-      // ✅ SỬA LỖI: Chỉ định rõ cách join với bảng profiles để tránh lỗi
+      // ✅ SỬA LỖI: Chỉ định rõ cách join với bảng profiles
       final response = await supabase
           .from('videos')
-          .select('id, thumbnail_url, user_id, video_url, title, created_at, profiles!inner(id, username, avatar_url)')
+          .select('''
+            id, video_url, title, thumbnail_url, user_id, created_at,
+            profiles!videos_user_id_fkey(id, username, avatar_url),
+            likes(user_id),
+            comments_count:comments(count)
+          ''')
           .eq('user_id', profileUserId.value)
           .order('created_at', ascending: false)
           .range(from, to);
 
-      // Không cần map phức tạp ở đây vì chúng ta không cần thông tin like/follow trong grid
-      final newVideos = response.map((e) => Video.fromJson(e)).toList();
+      // ✅ SỬA LỖI: Tái sử dụng logic map từ HomeController
+      final homeController = Get.find<HomeController>();
+      final newVideos = homeController.mapVideoResponse(response, followService.followedUserIds);
 
       if (newVideos.length < _pageSize) {
         hasMoreVideos.value = false;
@@ -110,6 +113,20 @@ class VideoUserController extends GetxController {
   }
 
   Future<void> deleteVideo(String videoId, String videoUrl) async {
-    // Logic xóa video
+    if (videoId.isEmpty || videoUrl.isEmpty) {
+      Get.snackbar('Lỗi', 'ID video hoặc URL không hợp lệ');
+      return;
+    }
+    if (isMyProfile) {
+      try {
+        await supabase.from('videos').delete().eq('id', videoId);
+        userVideos.removeWhere((video) => video.id == videoId);
+        Get.snackbar('Thành công', 'Đã xóa video');
+      } catch (e) {
+        Get.snackbar('Lỗi', 'Không thể xóa video: ${e.toString()}');
+      }
+    } else {
+      Get.snackbar('Lỗi', 'Bạn không có quyền xóa video này');
+    }
   }
 }
