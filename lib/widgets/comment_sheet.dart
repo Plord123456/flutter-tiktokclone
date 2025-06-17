@@ -230,14 +230,16 @@ class CommentItem extends GetView<CommentController> {
                     CircleAvatar(
 
                       radius: 18,
-                      backgroundImage: comment.avatarUrl.value.isNotEmpty ? CachedNetworkImageProvider(comment.avatarUrl.value) : null,
-                      child: comment.avatarUrl.isEmpty ? Text(comment.username.value.isNotEmpty ? comment.username.value[0].toUpperCase() : '') : null,                    ),
+                      backgroundImage: comment.avatarUrl.isNotEmpty ? CachedNetworkImageProvider(comment.avatarUrl) : null,
+                      child: comment.avatarUrl.isEmpty ? Text(comment.username.isNotEmpty ? comment.username[0].toUpperCase() : '') : null,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(comment.username.value, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600])),                          const SizedBox(height: 2),
+                          Text(comment.username, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600])),
+                          const SizedBox(height: 2),
                           Text(comment.content, style: theme.textTheme.bodyMedium),
                           const SizedBox(height: 4),
                           Row(

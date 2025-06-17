@@ -2,29 +2,17 @@ import 'package:get/get.dart';
 import 'profile_model.dart';
 
 class Video {
-  final String id;
-  final String videoUrl;
-  final String title;
-  final String thumbnailUrl;
+  final String id, videoUrl, title, thumbnailUrl;
   final DateTime createdAt;
   final Profile author;
-
-  late final RxInt likeCount;
-  late final RxInt commentCount;
-  late final RxBool isLikedByCurrentUser;
-  late final RxBool isFollowedByCurrentUser;
+  late final RxInt likeCount, commentCount;
+  late final RxBool isLikedByCurrentUser, isFollowedByCurrentUser;
 
   Video({
-    required this.id,
-    required this.videoUrl,
-    required this.title,
-    required this.thumbnailUrl,
-    required this.createdAt,
-    required this.author,
-    required int initialLikeCount,
-    required int initialCommentCount,
-    required bool initialIsLiked,
-    required bool initialIsFollowed,
+    required this.id, required this.videoUrl, required this.title,
+    required this.thumbnailUrl, required this.createdAt, required this.author,
+    required int initialLikeCount, required int initialCommentCount,
+    required bool initialIsLiked, required bool initialIsFollowed,
   }) {
     likeCount = initialLikeCount.obs;
     commentCount = initialCommentCount.obs;
@@ -33,16 +21,13 @@ class Video {
   }
 
   factory Video.fromSupabase(Map<String, dynamic> json, {
-    required String currentUserId,
-    required bool isFollowed,
+    required String currentUserId, required bool isFollowed,
   }) {
     final likesData = json['likes'] as List? ?? [];
     final commentsCountData = json['comments_count'] as List? ?? [];
-
     if (json['profiles'] == null) {
       throw Exception('Video with id ${json['id']} is missing profile data.');
     }
-
     return Video(
       id: json['id'],
       videoUrl: json['video_url'],

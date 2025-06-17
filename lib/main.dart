@@ -17,7 +17,6 @@ import 'initial_binding.dart';
 void main() async {
   // Đảm bảo các thành phần Flutter đã sẵn sàng
   WidgetsFlutterBinding.ensureInitialized();
-
   // --- SỬA LỖI: Lấy kết quả từ Future.wait đúng cách ---
   // Chạy các tác vụ khởi tạo song song và nhận kết quả là một List.
   final results = await Future.wait([

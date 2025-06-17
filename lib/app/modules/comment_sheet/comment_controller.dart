@@ -60,26 +60,25 @@ class CommentController extends GetxController {
     if (!isRefresh) isLoading.value = true;
 
     try {
-      if (currentUserId == null || currentUserId!.isEmpty) return;
+      if (currentUserId == null || currentUserId!.isEmpty) {
+        isLoading.value = false;
+        comments.clear(); // Xóa các comment cũ nếu có
+        return;
+      }
 
-      // Xây dựng query theo đúng trật tự
       final response = await supabase
           .from('comments')
           .select(_commentSelectQuery)
-      // Lọc trên bảng `comments`
           .eq('video_id', videoId)
-      // Lọc trên bảng được join `comment_likes`
-          .eq('comment_likes.user_id', currentUserId!)
-      // Cuối cùng mới order
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: false);
 
-      // Phần xử lý response
-      final allComments = response.map((json) {
-        // `comment_likes` trong json bây giờ là một list đã được lọc sẵn
-        final isLiked = (json['comment_likes'] as List).isNotEmpty;
-        return Comment.fromJson(json, currentUserId: currentUserId ?? '').copyWith(isLiked: isLiked);      }).toList();
+      // Giờ đây, currentUserId chắc chắn không null
+      final allComments = response
+          .map((json) => Comment.fromSupabase(json, currentUserId: currentUserId!))
+          .toList();
 
-      // ... logic xây dựng cây bình luận không đổi ...
+
+      // Logic xây dựng cây bình luận (giữ nguyên)
       final commentMap = {for (var c in allComments) c.id: c};
       final topLevelComments = <Comment>[];
 
@@ -91,6 +90,8 @@ class CommentController extends GetxController {
           topLevelComments.add(comment);
         }
       }
+
+      topLevelComments.sort((a,b) => b.createdAt.compareTo(a.createdAt));
       comments.assignAll(topLevelComments);
 
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+// Helper function để parse count an toàn
 int _parseCount(dynamic jsonField) {
   if (jsonField is List && jsonField.isNotEmpty) {
     return (jsonField.first as Map<String, dynamic>?)?['count'] as int? ?? 0;
@@ -10,23 +11,14 @@ int _parseCount(dynamic jsonField) {
 class Profile {
   final String id;
   final DateTime createdAt;
-
-  late final RxString username;
-  late final RxString fullName;
-  late final RxString avatarUrl;
-  late final RxInt postCount;
-  late final RxInt followerCount;
-  late final RxInt followingCount;
+  late final RxString username, fullName, avatarUrl;
+  late final RxInt postCount, followerCount, followingCount;
 
   Profile({
-    required this.id,
-    required this.createdAt,
-    required String initialUsername,
-    required String initialFullName,
-    required String initialAvatarUrl,
-    required int initialPostCount,
-    required int initialFollowerCount,
-    required int initialFollowingCount,
+    required this.id, required this.createdAt,
+    required String initialUsername, required String initialFullName,
+    required String initialAvatarUrl, required int initialPostCount,
+    required int initialFollowerCount, required int initialFollowingCount,
   }) {
     username = initialUsername.obs;
     fullName = initialFullName.obs;
