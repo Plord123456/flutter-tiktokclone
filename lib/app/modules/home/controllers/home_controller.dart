@@ -9,7 +9,7 @@ class HomeController extends GetxController {
   final supabase = Supabase.instance.client;
   final followService = Get.find<FollowService>();
   final authService = Get.find<AuthService>();
-
+  final _likingInProgress = <String>{}.obs;
   final videoList = <Video>[].obs;
   final RxMap<String, Profile> userProfiles = <String, Profile>{}.obs;
 
@@ -103,8 +103,14 @@ class HomeController extends GetxController {
   }
 
   void toggleLike(String videoId) async {
+    // Nếu video đã đang được xử lý, không làm gì cả
+    if (_likingInProgress.contains(videoId)) return;
+
     final video = videoList.firstWhereOrNull((v) => v.id == videoId);
     if (video == null) return;
+
+    // Thêm video vào danh sách đang xử lý
+    _likingInProgress.add(videoId);
 
     final isCurrentlyLiked = video.isLikedByCurrentUser.value;
     video.isLikedByCurrentUser.toggle();
@@ -117,8 +123,14 @@ class HomeController extends GetxController {
         await supabase.from('likes').insert({'video_id': videoId, 'user_id': currentUserId});
       }
     } catch (e) {
+      // Khôi phục trạng thái nếu có lỗi
       video.isLikedByCurrentUser.toggle();
       video.likeCount.value += isCurrentlyLiked ? 1 : -1;
+      // In ra lỗi để debug
+      print('Lỗi khi toggle like: $e');
+    } finally {
+      // Luôn xóa video khỏi danh sách đang xử lý sau khi hoàn tất
+      _likingInProgress.remove(videoId);
     }
   }
 

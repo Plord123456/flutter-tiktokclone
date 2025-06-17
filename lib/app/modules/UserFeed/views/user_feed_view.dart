@@ -25,8 +25,8 @@ class UserFeedView extends GetView<UserFeedController> {
         itemCount: controller.videos.length,
         itemBuilder: (context, index) {
           final video = controller.videos[index];
-          return VideoPlayerItem(video: video);
-        },
+          return VideoPlayerItem(video: video as Video);
+          },
         onPageChanged: (index) {
           if (index == controller.videos.length - 2) {
             controller.loadMoreVideos();
