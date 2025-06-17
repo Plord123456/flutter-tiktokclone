@@ -1,83 +1,71 @@
-
 import 'package:get/get.dart';
-import 'package:tiktok_clone/app/data/models/tag_model.dart';
+import 'package:tiktok_clone/app/data/models/profile_model.dart'; // Đảm bảo đường dẫn này đúng
 
 class Video {
   final String id;
   final String videoUrl;
   final String title;
-  final String username;
-  final String profilePhoto;
-  final String postedById;
   final String thumbnailUrl;
   final DateTime createdAt;
-  // Rx-Values for reactive UI updates
+
+  final Profile author;
+
   late final RxInt likeCount;
   late final RxInt commentCount;
   late final RxBool isLikedByCurrentUser;
+  late final RxBool isFollowedByCurrentUser;
 
-  // New field for follow status
-  final bool isFollowed;
-
-  // Danh sách tags
-  final List<Tag> tags;
-
+  /// ✅ FIX: Constructor nhận các giá trị 'initial' kiểu nguyên thủy.
   Video({
     required this.id,
     required this.videoUrl,
     required this.title,
-    required this.username,
-    required this.createdAt,
-    required this.profilePhoto,
-    required this.postedById,
     required this.thumbnailUrl,
+    required this.createdAt,
+    required this.author,
     required int initialLikeCount,
     required int initialCommentCount,
     required bool initialIsLiked,
-    required bool initialIsFollowed, // Add required
-    this.tags = const [],
-  })  : isFollowed = initialIsFollowed, // Assign to field
-        likeCount = initialLikeCount.obs,
-        commentCount = initialCommentCount.obs,
-        isLikedByCurrentUser = initialIsLiked.obs;
+    required bool initialIsFollowed,
+  }) {
+    // ✅ FIX: Bên trong constructor, chuyển đổi giá trị nguyên thủy thành Rx.
+    likeCount = initialLikeCount.obs;
+    commentCount = initialCommentCount.obs;
+    isLikedByCurrentUser = initialIsLiked.obs;
+    isFollowedByCurrentUser = initialIsFollowed.obs;
+  }
 
-  factory Video.fromJson(Map<String, dynamic> json) {
-    try {
-      final userProfile = json['profiles'] ?? json['profile'] ?? {};
-      final tagsData = json['tags'] as List? ?? [];
+  /// ✅ FIX: Factory `fromSupabase` chuẩn bị các giá trị bool/int
+  /// và truyền chúng vào các tham số `initial...` của constructor.
+  factory Video.fromSupabase(Map<String, dynamic> json, {
+    required String currentUserId,
+    required bool isFollowed,
+  }) {
+    final likesData = json['likes'] as List? ?? [];
+    final commentsCountData = json['comments_count'] as List? ?? [];
+    final profileData = json['profiles'];
 
-      return Video(
-        id: json['id'] as String? ?? '',
-        createdAt: DateTime.parse(json['created_at'] as String? ?? DateTime.now().toIso8601String()),
-        videoUrl: json['video_url'] as String? ?? '',
-        title: json['title'] as String? ?? '',
-        thumbnailUrl: json['thumbnail_url'] as String? ?? '',
-        postedById: json['user_id'] as String? ?? '',
-        username: userProfile['username'] as String? ?? 'Unknown User',
-        profilePhoto: userProfile['avatar_url'] as String? ?? '',
-        initialLikeCount: (json['like_count'] as num?)?.toInt() ?? 0,
-        initialCommentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
-        initialIsLiked: json['is_liked_by_me'] as bool? ?? false,
-        initialIsFollowed: json['is_followed'] as bool? ?? false,
-        tags: tagsData.map((tagJson) => Tag.fromJson(tagJson)).toList(),
-      );
-    } catch (e) {
-      Get.snackbar('Lỗi', 'Không thể phân tích dữ liệu video: ${e.toString()}');
-      return Video(
-        id: '',
-        videoUrl: '',
-        title: 'Lỗi tải video',
-        username: 'Unknown User',
-        profilePhoto: '',
-        postedById: '',
-        thumbnailUrl: '',
-        initialLikeCount: 0,
-        initialCommentCount: 0,
-        initialIsLiked: false,
-        initialIsFollowed: false,
-        tags: [],
-        createdAt: DateTime.now(),
-      );
+    if (profileData == null) {
+      // Ném lỗi hoặc trả về một giá trị mặc định nếu không có profile
+      // Điều này giúp tránh lỗi ở các bước sau.
+      throw Exception('Video with id ${json['id']} is missing profile data.');
     }
+
+    return Video(
+      id: json['id'],
+      videoUrl: json['video_url'],
+      title: json['title'] ?? '',
+      thumbnailUrl: json['thumbnail_url'] ?? '',
+      createdAt: DateTime.parse(json['created_at']),
+
+      // Tạo đối tượng author từ dữ liệu lồng nhau
+      author: Profile.fromJson(profileData),
+
+      // Truyền các giá trị nguyên thủy đã được tính toán
+      initialLikeCount: likesData.length,
+      initialCommentCount: commentsCountData.isNotEmpty ? commentsCountData.first['count'] : 0,
+      initialIsLiked: currentUserId.isNotEmpty && likesData.any((like) => like['user_id'] == currentUserId),
+      initialIsFollowed: isFollowed,
+    );
   }
 }

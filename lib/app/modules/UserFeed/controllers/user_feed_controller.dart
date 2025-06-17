@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tiktok_clone/app/data/models/video_model.dart';
-import 'package:tiktok_clone/app/modules/home/controllers/home_controller.dart';
+import 'package:tiktok_clone/services/auth_service.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 
 class UserFeedController extends GetxController {
   final supabase = Supabase.instance.client;
+  final authService = Get.find<AuthService>();
+  final followService = Get.find<FollowService>();
+
   final RxList<Video> videos = <Video>[].obs;
   late PageController pageController;
   final int initialIndex;
@@ -14,6 +17,8 @@ class UserFeedController extends GetxController {
   final RxBool isLoadingMore = false.obs;
   final RxBool hasMoreVideos = true.obs;
   final int _pageSize = 5;
+
+  String get currentUserId => authService.currentUserId;
 
   UserFeedController({required List<Video> initialVideos, required this.initialIndex}) {
     videos.assignAll(initialVideos);
@@ -31,32 +36,36 @@ class UserFeedController extends GetxController {
     super.onClose();
   }
 
+  /// ✅ HÀM LOADMOREVIDEOS ĐÃ ĐƯỢC VIẾT LẠI HOÀN TOÀN VÀ CHÍNH XÁC
   Future<void> loadMoreVideos() async {
     if (videos.isEmpty || isLoadingMore.value || !hasMoreVideos.value) return;
 
     isLoadingMore.value = true;
 
     try {
-      final lastVideoCreatedAt = videos.last.createdAt;
-      final userId = videos.first.postedById;
+      final lastVideo = videos.last;
+      // Lấy userId từ author của video
+      final userId = lastVideo.author.id;
 
-      // ✅ SỬA LỖI: Chỉ định rõ cách join với bảng profiles
       final response = await supabase
           .from('videos')
           .select('''
-            id, video_url, title, thumbnail_url, user_id, created_at,
-            profiles!videos_user_id_fkey(id, username, avatar_url),
+            id, video_url, title, thumbnail_url, created_at,
+            profiles!inner(id, username, avatar_url, full_name),
             likes(user_id),
             comments_count:comments(count)
           ''')
           .eq('user_id', userId)
-          .lt('created_at', lastVideoCreatedAt.toIso8601String())
-          .order('created_at', ascending: true)
+          .lt('created_at', lastVideo.createdAt.toIso8601String())
+          .order('created_at', ascending: false) // Lấy các video mới hơn trước
           .limit(_pageSize);
 
-      // ✅ SỬA LỖI: Tái sử dụng logic map từ HomeController
-      final homeController = Get.find<HomeController>();
-      final newVideos = homeController.mapVideoResponse(response, Get.find<FollowService>().followedUserIds);
+      // ✅ TỰ MAP DỮ LIỆU, KHÔNG DÙNG HOMECONTROLLER
+      final newVideos = response.map((json) => Video.fromSupabase(
+          json,
+          currentUserId: currentUserId,
+          isFollowed: followService.isFollowing(userId)
+      )).toList();
 
       if (newVideos.length < _pageSize) {
         hasMoreVideos.value = false;

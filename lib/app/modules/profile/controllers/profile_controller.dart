@@ -1,32 +1,32 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tiktok_clone/app/data/models/profile_model.dart'; // Import Profile model
 import 'package:tiktok_clone/app/modules/profile/views/edit_profile_view.dart';
 import '../../../../services/auth_service.dart';
 
 class ProfileController extends GetxController {
-  final AuthService _authService = Get.find<AuthService>();
+  // REFACTOR: Chỉ cần một tham chiếu đến AuthService.
+  // Mọi dữ liệu về người dùng sẽ được lấy từ đây.
+  final AuthService authService = Get.find<AuthService>();
   final supabase = Supabase.instance.client;
   final _storageBox = GetStorage();
 
-  final isLoading = false.obs;
   final isUpdating = false.obs;
-  final _rxUser = Rx<User?>(null);
   final selectedImage = Rx<File?>(null);
   final isDarkMode = false.obs;
 
   final formKey = GlobalKey<FormState>();
   late TextEditingController nameController;
-  late TextEditingController dobController;
+  late TextEditingController dobController; // Giả sử bạn có trường này
 
-  StreamSubscription? _authServiceSubscription;
+  // REFACTOR: Không cần _rxUser hay _authServiceSubscription nữa.
+  // Tạo một getter đơn giản để truy cập profile từ service.
+  Profile? get userProfile => authService.userProfile.value;
 
-  User? get currentUserData => _rxUser.value;
-  String? get avatarUrlData => _rxUser.value?.userMetadata?['avatar_url'];
   final _themeKey = 'isDarkMode';
 
   @override
@@ -34,83 +34,88 @@ class ProfileController extends GetxController {
     super.onInit();
     nameController = TextEditingController();
     dobController = TextEditingController();
-
-    _rxUser.value = _authService.currentUser;
-    _authServiceSubscription = _authService.rxCurrentUser.listen((user) {
-      _rxUser.value = user;
-    });
-
     _loadTheme();
   }
 
   void _loadTheme() {
     isDarkMode.value = _storageBox.read(_themeKey) ?? Get.isPlatformDarkMode;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.changeThemeMode(isDarkMode.value ? ThemeMode.dark : ThemeMode.light);
-    });
+    Get.changeThemeMode(isDarkMode.value ? ThemeMode.dark : ThemeMode.light);
   }
 
   void toggleTheme(bool value) {
     isDarkMode.value = value;
     _storageBox.write(_themeKey, value);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.changeThemeMode(value ? ThemeMode.dark : ThemeMode.light);
-    });
+    Get.changeThemeMode(value ? ThemeMode.dark : ThemeMode.light);
   }
 
   void navigateToEditScreen() {
-    final user = currentUserData;
-    if (user == null) {
+    // FIX: Lấy dữ liệu từ `userProfile` của service
+    final profile = userProfile;
+    if (profile == null) {
       Get.snackbar('Lỗi', 'Dữ liệu người dùng chưa sẵn sàng.');
       return;
     }
-    nameController.text = user.userMetadata?['name'] ?? '';
-    dobController.text = user.userMetadata?['date_of_birth'] ?? '';
+    // Dùng `.value` vì username và fullName là RxString
+    nameController.text = profile.fullName.value;
+    // dobController.text = profile.dateOfBirth.value; // Ví dụ
     selectedImage.value = null;
 
     Get.to(() => const EditProfileView());
   }
 
   Future<void> pickImageFromGallery() async {
-    final pickedFile =
-    await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (pickedFile != null) {
       selectedImage.value = File(pickedFile.path);
     }
   }
 
   Future<void> updateUserProfile() async {
-    if (!formKey.currentState!.validate()) return;
+    if (!formKey.currentState!.validate() || userProfile == null) return;
 
     isUpdating.value = true;
     try {
-      String? newAvatarUrl;
-
+      String? newAvatarUrl = userProfile!.avatarUrl.value;
+      // 1. Upload ảnh mới (nếu có)
       if (selectedImage.value != null) {
         final imageFile = selectedImage.value!;
         final imageExtension = imageFile.path.split('.').last.toLowerCase();
-        final filePath =
-            '${supabase.auth.currentUser!.id}/profile.$imageExtension';
+        final filePath = '${authService.currentUserId}/profile.$imageExtension';
 
-        await supabase.storage.from('avatars').update(
+        // Dùng `upload` thay vì `update` để xử lý cả trường hợp chưa có ảnh
+        await supabase.storage.from('avatars').upload(
           filePath,
           imageFile,
           fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
         );
+        // Lấy public URL với timestamp để tránh cache
         newAvatarUrl = supabase.storage.from('avatars').getPublicUrl(filePath);
-        newAvatarUrl =
-        '$newAvatarUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+        newAvatarUrl = '$newAvatarUrl?t=${DateTime.now().millisecondsSinceEpoch}';
       }
 
-      final Map<String, dynamic> updatedData = {
-        'name': nameController.text.trim(),
-        'date_of_birth': dobController.text.trim(),
-        if (newAvatarUrl != null) 'avatar_url': newAvatarUrl,
+      // 2. Cập nhật dữ liệu trong Supabase Auth (user_metadata)
+      final updatedData = {
+        'full_name': nameController.text.trim(),
+        'avatar_url': newAvatarUrl, // Luôn cập nhật URL, dù là cũ hay mới
       };
-
       await supabase.auth.updateUser(UserAttributes(data: updatedData));
 
-      Get.back();
+      // 3. Cập nhật dữ liệu trong bảng `profiles`
+      await supabase
+          .from('profiles')
+          .update({
+        'full_name': nameController.text.trim(),
+        'avatar_url': newAvatarUrl,
+      })
+          .eq('id', authService.currentUserId);
+
+      // ✅ FIX: BÁO CHO AUTHSERVICE BIẾT ĐỂ CẬP NHẬT STATE TRÊN TOÀN APP
+      authService.updateLocalProfile(
+        newUsername: userProfile!.username.value, // username không đổi
+        newFullName: nameController.text.trim(),
+      );
+
+      Get.back(); // Quay về trang profile
       Get.snackbar('Thành công', 'Hồ sơ đã được cập nhật!');
     } catch (e) {
       Get.snackbar('Lỗi', 'Không thể cập nhật hồ sơ: ${e.toString()}');
@@ -120,15 +125,14 @@ class ProfileController extends GetxController {
   }
 
   Future<void> signOut() async {
-    await _authService.signOut();
-    Get.offAllNamed('/login');
+    // REFACTOR: Gọi hàm signOut từ service, nó đã xử lý cả việc chuyển hướng
+    await authService.signOut();
   }
 
   @override
   void onClose() {
     nameController.dispose();
     dobController.dispose();
-    _authServiceSubscription?.cancel();
     super.onClose();
   }
 }

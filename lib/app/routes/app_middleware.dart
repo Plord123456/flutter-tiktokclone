@@ -13,7 +13,7 @@ class AuthMiddleware extends GetMiddleware {
 
     final authService = Get.find<AuthService>();
 
-    final bool isAuthenticated = authService.currentUser != null;
+    final bool isAuthenticated = authService.currentUserId != null;
 
     const loginRoute = Routes.LOGIN;
 

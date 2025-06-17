@@ -16,7 +16,7 @@ class VideoUserView extends GetView<VideoUserController> {
     final ScrollController scrollController = ScrollController();
     scrollController.addListener(() {
       if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 300) {
-        controller.fetchUserVideos();
+        controller.fetchUserVideos(isRefresh: false);
       }
     });
 
@@ -44,8 +44,7 @@ class VideoUserView extends GetView<VideoUserController> {
             controller: scrollController,
             slivers: [
               SliverAppBar(
-                title: Text(profile.username, style: const TextStyle(fontWeight: FontWeight.bold)),
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                title: Text(profile.username.value, style: const TextStyle(fontWeight: FontWeight.bold)),                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 pinned: true,
                 elevation: 0,
               ),
@@ -75,7 +74,7 @@ class VideoUserView extends GetView<VideoUserController> {
             radius: 45,
             backgroundColor: Colors.grey.shade200,
             backgroundImage: (profile.avatarUrl?.isNotEmpty ?? false)
-                ? CachedNetworkImageProvider(profile.avatarUrl!)
+                ? CachedNetworkImageProvider(profile.avatarUrl!.value)
                 : null,
             child: (profile.avatarUrl?.isEmpty ?? true)
                 ? const Icon(Icons.person, size: 40, color: Colors.grey)
@@ -83,7 +82,7 @@ class VideoUserView extends GetView<VideoUserController> {
           ),
           const SizedBox(height: 12),
           Text(
-            profile.fullName ?? '@${profile.username}',
+            (profile.fullName ?? '@${profile.username.value}') as String,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
@@ -100,9 +99,9 @@ class VideoUserView extends GetView<VideoUserController> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildStatColumn('Posts', profile.postCount.toString()),
-        _buildStatColumn('Followers', profile.followerCount.toString()),
-        _buildStatColumn('Following', profile.followingCount.toString()),
+        _buildStatColumn('Posts', profile.postCount.value.toString()),
+        _buildStatColumn('Followers', profile.followerCount.value.toString()),
+        _buildStatColumn('Following', profile.followingCount.value.toString()),
       ],
     );
   }
@@ -173,8 +172,60 @@ class VideoUserView extends GetView<VideoUserController> {
 
   void _showVideoOptions(BuildContext context, Video video) {
     Get.bottomSheet(
-      // Logic bottom sheet ở đây
-        Container()
+      // Dùng Wrap để nội dung co lại vừa đủ
+      Wrap(
+        children: <Widget>[
+          ListTile(
+            leading: const Icon(Iconsax.trash, color: Colors.red),
+            title: const Text('Xóa Video', style: TextStyle(color: Colors.red)),
+            onTap: () {
+              // 1. Đóng bottom sheet
+              Get.back();
+              // 2. Hiển thị hộp thoại xác nhận
+              _showDeleteConfirmationDialog(context, video);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Iconsax.close_circle),
+            title: const Text('Hủy'),
+            onTap: () {
+              // Đơn giản là đóng bottom sheet
+              Get.back();
+            },
+          ),
+        ],
+      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
     );
   }
+
+  // IMPROVEMENT: Thêm hàm để hiển thị dialog xác nhận
+  void _showDeleteConfirmationDialog(BuildContext context, Video video) {
+    Get.defaultDialog(
+      title: "Xác nhận xóa",
+      middleText: "Bạn có chắc chắn muốn xóa video này không? Hành động này không thể hoàn tác.",
+      titleStyle: const TextStyle(fontWeight: FontWeight.bold),
+      // Các nút bấm
+      textConfirm: "Xóa",
+      textCancel: "Hủy",
+      confirmTextColor: Colors.white,
+      buttonColor: Colors.red,
+      // Hành động khi nhấn nút
+      onConfirm: () {
+        // Đóng dialog
+        Get.back();
+        // 3. Gọi đến hàm xóa trong controller
+        controller.deleteVideo(video.id, video.videoUrl);
+      },
+      onCancel: () {
+        // Không làm gì cả khi hủy
+      },
+    );
+}
 }

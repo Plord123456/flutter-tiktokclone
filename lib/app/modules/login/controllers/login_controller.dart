@@ -6,7 +6,7 @@ import '../../../../services/auth_service.dart';
 class LoginController extends GetxController {
   final authService = Get.find<AuthService>();
 
-  User? get user => authService.currentUser;
+  User? get currentUser => Supabase.instance.client.auth.currentUser;
 
   get isReady => null;
 

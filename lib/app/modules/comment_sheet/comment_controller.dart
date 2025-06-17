@@ -1,15 +1,12 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/comments_model.dart';
 
-
 class CommentController extends GetxController {
   final String videoId;
   CommentController({required this.videoId});
-
   final SupabaseClient supabase = Supabase.instance.client;
   final isLoading = true.obs;
   final isPostingComment = false.obs;
@@ -19,8 +16,12 @@ class CommentController extends GetxController {
   final Rx<Comment?> replyingTo = Rx<Comment?>(null);
   late final String? currentUserId;
 
+  // ✅ IMPROVEMENT: Khai báo biến state còn thiếu
+  final RxSet<String> deletingCommentIds = <String>{}.obs;
+
+  // ✅ IMPROVEMENT: Query hiệu quả hơn, gộp 2 API call thành 1
   final String _commentSelectQuery =
-      'id, content, created_at, user_id, video_id, parent_comment_id, profiles!inner(username, avatar_url)';
+      '*, profiles!inner(username, avatar_url), comment_likes!left(user_id)';
 
   @override
   void onInit() {
@@ -29,36 +30,61 @@ class CommentController extends GetxController {
     fetchComments();
   }
 
-  Future<void> fetchComments() async {
-    try {
-      isLoading.value = true;
-      if (currentUserId == null) return;
+  @override
+  void onClose() {
+    textController.dispose();
+    scrollController.dispose();
+    super.onClose();
+  }
+  int get totalCommentCount {
+    int count = 0;
+    // Đếm các bình luận gốc
+    for (var comment in comments) {
+      // Mỗi bình luận gốc được tính là 1, cộng với số lượng trả lời của nó
+      count += 1 + _countReplies(comment.replies);
+    }
+    return count;
+  }
 
+  /// Hàm đệ quy để đếm các trả lời con
+  int _countReplies(List<Comment> replies) {
+    int count = replies.length; // Đếm các trả lời ở cấp hiện tại
+    for (var reply in replies) {
+      // Cộng dồn số lượng trả lời của các cấp con
+      count += _countReplies(reply.replies);
+    }
+    return count;
+  }
+  // ✅ REFACTOR: Tối ưu hóa hàm fetchComments
+  Future<void> fetchComments({bool isRefresh = false}) async {
+    if (!isRefresh) isLoading.value = true;
+
+    try {
+      if (currentUserId == null || currentUserId!.isEmpty) return;
+
+      // Xây dựng query theo đúng trật tự
       final response = await supabase
           .from('comments')
           .select(_commentSelectQuery)
+      // Lọc trên bảng `comments`
           .eq('video_id', videoId)
+      // Lọc trên bảng được join `comment_likes`
+          .eq('comment_likes.user_id', currentUserId!)
+      // Cuối cùng mới order
           .order('created_at', ascending: true);
 
-      // ✅ THÊM LẠI: Lấy danh sách các bình luận mà người dùng hiện tại đã thích.
-      final likedCommentsResponse = await supabase
-          .from('comment_likes')
-          .select('comment_id')
-          .eq('user_id', currentUserId!);
+      // Phần xử lý response
+      final allComments = response.map((json) {
+        // `comment_likes` trong json bây giờ là một list đã được lọc sẵn
+        final isLiked = (json['comment_likes'] as List).isNotEmpty;
+        return Comment.fromJson(json, currentUserId: currentUserId ?? '').copyWith(isLiked: isLiked);      }).toList();
 
-      final likedCommentIds =
-      likedCommentsResponse.map((like) => like['comment_id'].toString()).toSet();
-
-      final allComments = response
-          .map((json) => Comment.fromJson(json)
-          .copyWith(isLiked: likedCommentIds.contains(json['id'].toString())))
-          .toList();
-
+      // ... logic xây dựng cây bình luận không đổi ...
       final commentMap = {for (var c in allComments) c.id: c};
       final topLevelComments = <Comment>[];
 
       for (var comment in allComments) {
-        final parentId = comment.parentCommentId?.toString();
+        final parentId = comment.parentCommentId;
         if (parentId != null && commentMap.containsKey(parentId)) {
           commentMap[parentId]!.replies.add(comment);
         } else {
@@ -70,7 +96,7 @@ class CommentController extends GetxController {
     } catch (e) {
       Get.snackbar('Lỗi tải dữ liệu', 'Không thể tải bình luận: ${e.toString()}');
     } finally {
-      isLoading.value = false;
+      if (!isRefresh) isLoading.value = false;
     }
   }
 
@@ -86,19 +112,19 @@ class CommentController extends GetxController {
         'content': text,
         'video_id': videoId,
         'user_id': currentUserId!,
-        'parent_comment_id': parentIdValue != null ? int.tryParse(parentIdValue) : null,
+        // NOTE: Đảm bảo 'parent_comment_id' trong DB có thể nhận giá trị null
+        // và kiểu dữ liệu của nó khớp với kiểu của ID (ví dụ: bigint hoặc uuid)
+        'parent_comment_id': parentIdValue,
       };
 
-      final newCommentData = await supabase
-          .from('comments')
-          .insert(payload)
-          .select(_commentSelectQuery)
-          .single();
+      // Tối ưu: Sau khi insert, không cần select lại mà gọi fetchComments
+      await supabase.from('comments').insert(payload);
 
-      final newComment = Comment.fromJson(newCommentData);
-      _addCommentToList(newComment);
+      // Tải lại để đảm bảo trạng thái (like,...) được cập nhật đúng
+      await fetchComments(isRefresh: true);
+
       textController.clear();
-      replyingTo.value = null;
+      cancelReply();
 
     } catch (e) {
       Get.snackbar('Lỗi', 'Gửi bình luận thất bại: ${e.toString()}');
@@ -107,84 +133,56 @@ class CommentController extends GetxController {
     }
   }
 
+  // ✅ FIX: Hàm deleteComment đã được sửa lỗi và nhất quán
   Future<void> deleteComment(String commentId) async {
+    Get.back(); // Đóng bottom sheet
+    deletingCommentIds.add(commentId);
+
     try {
-      final commentIdAsInt = int.tryParse(commentId);
-      if (commentIdAsInt == null) return;
-      await supabase.from('comments').delete().eq('id', commentIdAsInt);
-      if (_deleteCommentRecursive(commentId, comments)) {
-        Get.back();
-        Get.snackbar("Thành công", "Đã xóa bình luận.");
-      }
-    } catch(e) {
-      Get.snackbar("Lỗi", "Không thể xóa bình luận này.");
+      await supabase.from('comments').delete().eq('id', commentId);
+      // Tải lại danh sách để UI được cập nhật chính xác nhất
+      await fetchComments(isRefresh: true);
+    } catch (e) {
+      Get.snackbar('Lỗi', 'Không thể xóa bình luận: ${e.toString()}');
+    } finally {
+      deletingCommentIds.remove(commentId);
     }
   }
 
-  /// ✅ THÊM LẠI: Hàm toggleLike cho bình luận, sử dụng bảng 'comment_likes'
   Future<void> toggleLike(String commentId) async {
     if (currentUserId == null) return;
 
     final comment = _findCommentById(commentId);
     if (comment == null) return;
 
-    final commentIdAsInt = int.tryParse(commentId);
-    if (commentIdAsInt == null) return;
-
     final isCurrentlyLiked = comment.isLiked.value;
+
     comment.isLiked.toggle();
+
+    comment.likeCount.value += isCurrentlyLiked ? -1 : 1;
 
     try {
       if (isCurrentlyLiked) {
-        // Nếu đang like -> unlike (xóa record)
         await supabase.from('comment_likes').delete().match({
-          'comment_id': commentIdAsInt,
+          'comment_id': commentId,
           'user_id': currentUserId!,
         });
       } else {
-        // Nếu chưa like -> like (thêm record)
+        // Like: Thêm record
         await supabase.from('comment_likes').insert({
-          'comment_id': commentIdAsInt,
+          'comment_id': commentId,
           'user_id': currentUserId!,
         });
       }
     } catch (e) {
       comment.isLiked.toggle();
+
+      comment.likeCount.value += isCurrentlyLiked ? 1 : -1;
+
       Get.snackbar("Lỗi", "Thao tác thất bại, vui lòng thử lại.");
     }
   }
 
-  // --- CÁC HÀM HELPER ---
-
-  void _addCommentToList(Comment comment) {
-    if (replyingTo.value != null) {
-      final parent = comments.firstWhereOrNull((c) => c.id == replyingTo.value!.id);
-      parent?.replies.add(comment);
-    } else {
-      comments.add(comment);
-    }
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (scrollController.hasClients) {
-        scrollController.animateTo(
-          scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  bool _deleteCommentRecursive(String id, RxList<Comment> commentList) {
-    for (int i = 0; i < commentList.length; i++) {
-      if (commentList[i].id == id) {
-        commentList.removeAt(i);
-        return true;
-      }
-      if (_deleteCommentRecursive(id, commentList[i].replies)) return true;
-    }
-    return false;
-  }
 
   Comment? _findCommentById(String id) {
     for (var comment in comments) {
@@ -210,12 +208,5 @@ class CommentController extends GetxController {
 
   void cancelReply() {
     replyingTo.value = null;
-  }
-
-  @override
-  void onClose() {
-    textController.dispose();
-    scrollController.dispose();
-    super.onClose();
   }
 }
