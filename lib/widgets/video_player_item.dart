@@ -1,4 +1,3 @@
-// lib/widgets/video_player_item.dart
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
@@ -7,13 +6,12 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:tiktok_clone/app/data/models/profile_model.dart';
 import 'package:tiktok_clone/app/data/models/video_model.dart';
-import 'package:tiktok_clone/app/modules/comment_sheet/comment_controller.dart';
 import 'package:tiktok_clone/app/modules/home/controllers/home_controller.dart';
-import 'package:tiktok_clone/app/routes/app_pages.dart';
+import '../app/routes/app_pages.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 import 'package:tiktok_clone/widgets/comment_sheet.dart';
 
-// Đã dọn dẹp, chỉ cần video và index
+// Constructor đã được dọn dẹp, chỉ còn video và index
 class VideoPlayerItem extends StatelessWidget {
   final Video video;
   final int index;
@@ -23,12 +21,12 @@ class VideoPlayerItem extends StatelessWidget {
     required this.index,
     super.key,
   });
+
   @override
   Widget build(BuildContext context) {
     final HomeController homeController = Get.find<HomeController>();
-
     return GetBuilder<HomeController>(
-      id: video.id, // Chỉ rebuild widget này khi controller của nó sẵn sàng
+      id: video.id,
       builder: (controller) {
         final videoPlayerController = controller.getControllerForIndex(index);
 
