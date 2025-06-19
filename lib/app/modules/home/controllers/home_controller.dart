@@ -1,38 +1,62 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tiktok_clone/app/data/models/profile_model.dart';
 import 'package:tiktok_clone/app/data/models/video_model.dart';
 import 'package:tiktok_clone/services/auth_service.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
+import 'package:video_player/video_player.dart';
 
 class HomeController extends GetxController {
   final supabase = Supabase.instance.client;
   final followService = Get.find<FollowService>();
   final authService = Get.find<AuthService>();
 
+  // State cho việc tải video
   final videoList = <Video>[].obs;
   final isLoading = true.obs;
   final isLoadingMore = false.obs;
   final hasMoreVideos = true.obs;
   final _videoPageSize = 5;
 
-  // Set để lưu ID các video đã thích, giúp kiểm tra rất nhanh
+  // State cho chức năng Like
   final RxSet<String> likedVideoIds = <String>{}.obs;
-
   final _likingInProgress = <String>{}.obs;
   String get currentUserId => authService.currentUserId;
+
+
+  final PageController pageController = PageController();
+  final RxInt currentVideoIndex = 0.obs;
+  final Map<int, VideoPlayerController> _videoControllers = {};
 
   @override
   void onInit() {
     super.onInit();
     initialLoad();
+    _setupPageListener(); // Thêm listener cho PageView
+
+  }
+  void _setupPageListener() {
+    pageController.addListener(() {
+      final newIndex = pageController.page?.round();
+      if (newIndex != null && newIndex != currentVideoIndex.value) {
+        // Dừng video cũ
+        _videoControllers[currentVideoIndex.value]?.pause();
+
+        // Cập nhật index và chạy video mới
+        currentVideoIndex.value = newIndex;
+        _playCurrentVideo();
+
+        // Giải phóng các controller không cần thiết để tiết kiệm bộ nhớ
+        _disposeUnusedControllers();
+      }
+    });
   }
 
   Future<void> initialLoad() async {
     isLoading.value = true;
     try {
-      // Tải song song cả video và danh sách like của người dùng
       await Future.wait([
         _fetchUserLikes(),
         fetchVideos(refresh: true),
@@ -41,6 +65,10 @@ class HomeController extends GetxController {
       Get.snackbar('Lỗi', 'Không thể tải dữ liệu: ${e.toString()}');
     } finally {
       isLoading.value = false;
+      // Khởi tạo và chơi video đầu tiên sau khi tải xong
+      if (videoList.isNotEmpty) {
+        getControllerForIndex(0);
+      }
     }
   }
 
@@ -149,5 +177,55 @@ class HomeController extends GetxController {
   void toggleFollow(String userIdToFollow) {
     followService.toggleFollow(userIdToFollow);
   }
+  VideoPlayerController? getControllerForIndex(int index) {
+    if (!_videoControllers.containsKey(index)) {
+      if (index < videoList.length) {
+        final video = videoList[index];
+        final controller = VideoPlayerController.networkUrl(Uri.parse(video.videoUrl))
+          ..initialize().then((_) {
+            if (index == currentVideoIndex.value) {
+              _playCurrentVideo();
+            }
+            update();
+          });
+        _videoControllers[index] = controller;
+      }
+    }
+    return _videoControllers[index];
+  }
 
+  void _playCurrentVideo() {
+    final controller = _videoControllers[currentVideoIndex.value];
+    if (controller != null && controller.value.isInitialized) {
+      controller.play();
+      controller.setLooping(true);
+    }
+  }
+
+  void _disposeUnusedControllers() {
+    // Giữ lại controller cho video hiện tại, video trước và video sau
+    final aLiveIndexes = [
+      currentVideoIndex.value - 1,
+      currentVideoIndex.value,
+      currentVideoIndex.value + 1,
+    ];
+
+    final keysToRemove = <int>[];
+    _videoControllers.forEach((key, controller) {
+      if (!aLiveIndexes.contains(key)) {
+        controller.dispose();
+        keysToRemove.add(key);
+      }
+    });
+    keysToRemove.forEach(_videoControllers.remove);
+  }
+  @override
+  void onClose() {
+    pageController.dispose();
+    _videoControllers.forEach((key, controller) {
+      controller.dispose();
+    });
+    _videoControllers.clear();
+    super.onClose();
+  }
 }

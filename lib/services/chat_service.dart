@@ -27,11 +27,14 @@ class ChatService extends GetxService {
 
   Future<List<Conversation>> getConversations() async {
     try {
-      final response = await supabase.rpc('get_user_conversations',
-          params: {'p_user_id': currentUserId});
+      final response = await supabase
+          .rpc('get_user_conversations', params: {'p_user_id': currentUserId});
+
+
+      print('DEBUG: Dữ liệu JSON nhận được từ RPC: $response');
+
       final conversations = (response as List<dynamic>)
-          .map((json) =>
-          Conversation.fromJson(json, currentUserId: currentUserId))
+          .map((json) => Conversation.fromJson(json, currentUserId: currentUserId))
           .toList();
       return conversations;
     } catch (e) {
