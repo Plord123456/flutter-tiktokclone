@@ -24,11 +24,8 @@ class UserFeedView extends GetView<UserFeedController> {
         physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
         itemCount: controller.videos.length,
         itemBuilder: (context, index) {
-          final video = controller.videoList[index]; // hoặc controller.videos[index]
-          return VideoPlayerItem(
-            video: video,
-            index: index,
-          );
+          final video = controller.videos[index];
+          return VideoPlayerItem(video: video, index:index);
         },
         onPageChanged: (index) {
           if (index >= controller.videos.length - 2 && controller.hasMoreVideos.value) {

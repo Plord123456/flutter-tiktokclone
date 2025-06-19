@@ -9,7 +9,6 @@ class UserFeedController extends GetxController {
   final supabase = Supabase.instance.client;
   final authService = Get.find<AuthService>();
   final followService = Get.find<FollowService>();
-
   final RxList<Video> videos = <Video>[].obs;
   late PageController pageController;
   final int initialIndex;
