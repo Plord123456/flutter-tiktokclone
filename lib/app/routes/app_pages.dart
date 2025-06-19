@@ -53,11 +53,11 @@ class AppPages {
       page: () => const ProfileView(),
       binding: ProfileBinding(),
     ),
-    GetPage(
-      name: '/user',
-      page: () => const VideoUserView(),
-      binding: VideoUserBinding(), // Đảm bảo có binding để inject controller
-    ),
+      GetPage(
+        name: '/user',
+        page: () => const VideoUserView(profileId:,),
+        binding: VideoUserBinding(), // Đảm bảo có binding để inject controller
+      ),
     GetPage(
       name: _Paths.USER_FEED,
       page: () => const UserFeedView(),
