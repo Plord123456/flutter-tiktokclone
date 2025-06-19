@@ -27,7 +27,7 @@ class Profile {
     required int initialPostCount,
     required int initialFollowerCount,
     required int initialFollowingCount,
-    List<Video>? initialVideos,
+    List<Video>? initialVideos, required initialLikesCount,
   }) {
     username = initialUsername.obs;
     fullName = initialFullName.obs;
@@ -58,8 +58,9 @@ class Profile {
           currentUserId: currentUserId, // Sử dụng trực tiếp tham số đã được yêu cầu
           isFollowed: false // isFollowed cần logic riêng nếu có
       ))
-          .toList(), // Fallback về null nếu không có 'videos', constructor sẽ xử lý
-    );
+          .toList(),
+    initialLikesCount: json['likes_count'] ?? 0, // Fallback về 0 nếu không có 'likes_count'
+      );
   }
 
   // Phương thức cập nhật profile, đã rất tốt
@@ -79,5 +80,18 @@ class Profile {
     if (newFollowerCount != null) followerCount.value = newFollowerCount;
     if (newFollowingCount != null) followingCount.value = newFollowingCount;
     if (newVideos != null) videos.assignAll(newVideos);
+  }
+  factory Profile.fromSupabase(Map<String, dynamic> json) {
+    return Profile(
+      id: json['id'],
+      initialUsername: json['username'] ?? 'Người dùng',
+      initialFullName: json['full_name'],
+      initialAvatarUrl: json['avatar_url'],
+      initialFollowerCount: json['follower_count'] ?? 0,
+      initialFollowingCount: json['following_count'] ?? 0,
+      initialPostCount: json['post_count'] ?? 0,
+      initialLikesCount: json['likes_count'] ?? 0,
+      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+    );
   }
 }
