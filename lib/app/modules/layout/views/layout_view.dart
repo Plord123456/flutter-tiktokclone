@@ -59,7 +59,7 @@ class LayoutView extends GetView<LayoutController> {
               ),
               _buildNavItem(
                 context: context,
-                icon: Iconsax.activity,
+                icon: Iconsax.message,
                 label: 'message',
                 index: 2,
               ),

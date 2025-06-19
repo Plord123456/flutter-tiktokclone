@@ -8,6 +8,8 @@ import '../../../data/models/conversation_model.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../data/models/video_model.dart';
 import '../../../routes/app_pages.dart';
+import '../../profile/bindings/profile_binding.dart';
+import '../../profile/views/edit_profile_view.dart';
 import '../controllers/video_user_controller.dart';
 
 class VideoUserView extends GetView<VideoUserController> {
@@ -130,7 +132,6 @@ class VideoUserView extends GetView<VideoUserController> {
       // Nếu là profile của tôi, chỉ hiển thị nút "Edit Profile"
           ? OutlinedButton(
         onPressed: () {
-          // Logic để mở màn hình edit profile
           Get.to(() => EditProfileView(), binding: ProfileBinding());
         },
         child: const Text('Edit Profile'),
@@ -153,7 +154,6 @@ class VideoUserView extends GetView<VideoUserController> {
             ),
           ),
           const SizedBox(width: 8), // Khoảng cách giữa 2 nút
-          // Nút Nhắn tin
           IconButton(
             icon: const Icon(Iconsax.message),
             onPressed: () async {
