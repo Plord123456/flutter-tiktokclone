@@ -7,12 +7,14 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../controllers/chat_list_controller.dart';
 
-
 class ChatListView extends GetView<ChatListController> {
   const ChatListView({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Cài đặt ngôn ngữ cho timeago
+    timeago.setLocaleMessages('vi', timeago.ViMessages());
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tin nhắn'),
@@ -26,6 +28,7 @@ class ChatListView extends GetView<ChatListController> {
           if (controller.conversations.isEmpty) {
             return const Center(child: Text('Chưa có cuộc trò chuyện nào.'));
           }
+          // Dùng RefreshIndicator để người dùng có thể vuốt xuống để tải lại
           return RefreshIndicator(
             onRefresh: controller.fetchConversations,
             child: ListView.builder(
@@ -34,14 +37,18 @@ class ChatListView extends GetView<ChatListController> {
                 final conversation = controller.conversations[index];
                 return ListTile(
                   leading: CircleAvatar(
+                    radius: 28,
                     backgroundImage: CachedNetworkImageProvider(
-                      conversation.otherParticipant.avatarUrl?.value ?? '',
+                      // Lấy avatar của người đối diện
+                      conversation.otherParticipant.avatarUrl.value,
                     ),
-                    child: conversation.otherParticipant.avatarUrl?.value == null
+                    // Fallback nếu không có avatar
+                    child: conversation.otherParticipant.avatarUrl.value.isEmpty
                         ? const Icon(Icons.person)
                         : null,
                   ),
                   title: Text(
+                    // Lấy username của người đối diện
                     conversation.otherParticipant.username.value,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -52,6 +59,7 @@ class ChatListView extends GetView<ChatListController> {
                   ),
                   trailing: Text(
                     conversation.lastMessageCreatedAt != null
+                    // Hiển thị thời gian dạng "5 phút trước", "1 giờ trước"
                         ? timeago.format(conversation.lastMessageCreatedAt!, locale: 'vi')
                         : '',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
