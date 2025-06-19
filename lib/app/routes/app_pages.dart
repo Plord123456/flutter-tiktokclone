@@ -55,7 +55,7 @@ class AppPages {
     ),
       GetPage(
         name: '/user',
-        page: () => const VideoUserView(profileId:,),
+        page: () => const VideoUserView(),
         binding: VideoUserBinding(), // Đảm bảo có binding để inject controller
       ),
     GetPage(

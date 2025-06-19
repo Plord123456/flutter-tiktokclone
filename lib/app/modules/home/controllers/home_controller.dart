@@ -19,7 +19,7 @@ class HomeController extends GetxController {
   final hasMoreVideos = true.obs;
   final _videoPageSize = 5;
 
-  // State cho chức năng Like
+  // State cho chức năng Like (Tối ưu)
   final RxSet<String> likedVideoIds = <String>{}.obs;
   final _likingInProgress = <String>{}.obs;
   String get currentUserId => authService.currentUserId;
@@ -62,6 +62,7 @@ class HomeController extends GetxController {
       }
     }
   }
+
 
   // Hàm mới: Tải tất cả ID video đã thích một lần duy nhất
   Future<void> _fetchUserLikes() async {
@@ -168,12 +169,12 @@ class HomeController extends GetxController {
   void toggleFollow(String userIdToFollow) {
     followService.toggleFollow(userIdToFollow);
   }
-  // CÁC HÀM QUẢN LÝ VIDEO PLAYER ĐƯỢC CẬP NHẬT
+
+  // CÁC HÀM QUẢN LÝ VIDEO PLAYER
   CachedVideoPlayerPlusController? getControllerForIndex(int index) {
     if (!_videoControllers.containsKey(index)) {
       if (index >= 0 && index < videoList.length) {
         final video = videoList[index];
-        // THAY ĐỔI: TẠO ĐÚNG LOẠI CONTROLLER
         final controller = CachedVideoPlayerPlusController.networkUrl(Uri.parse(video.videoUrl))
           ..initialize().then((_) {
             if (index == currentVideoIndex.value) _playCurrentVideo();
@@ -207,14 +208,13 @@ class HomeController extends GetxController {
       }
     });
     keysToRemove.forEach(_videoControllers.remove);
-    print('Disposed controllers. Remaining: ${_videoControllers.length}');
   }
 
   @override
   void onClose() {
     pageController.dispose();
     _videoControllers.forEach((key, controller) {
-      controller?.dispose();
+      controller.dispose();
     });
     _videoControllers.clear();
     super.onClose();

@@ -23,7 +23,6 @@ class VideoPlayerItem extends StatelessWidget {
     required this.index,
     super.key,
   });
-
   @override
   Widget build(BuildContext context) {
     final HomeController homeController = Get.find<HomeController>();
