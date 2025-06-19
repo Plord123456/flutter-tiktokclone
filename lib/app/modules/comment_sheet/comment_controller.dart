@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/comments_model.dart';
+import '../home/controllers/home_controller.dart';
 
 class CommentController extends GetxController {
   final String videoId;
@@ -62,7 +63,7 @@ class CommentController extends GetxController {
     try {
       if (currentUserId == null || currentUserId!.isEmpty) {
         isLoading.value = false;
-        comments.clear(); // Xóa các comment cũ nếu có
+        comments.clear();
         return;
       }
 
@@ -72,13 +73,15 @@ class CommentController extends GetxController {
           .eq('video_id', videoId)
           .order('created_at', ascending: false);
 
-      // Giờ đây, currentUserId chắc chắn không null
+      if (response.isEmpty) {
+        comments.clear();
+        return;
+      }
+
       final allComments = response
           .map((json) => Comment.fromSupabase(json, currentUserId: currentUserId!))
           .toList();
 
-
-      // Logic xây dựng cây bình luận (giữ nguyên)
       final commentMap = {for (var c in allComments) c.id: c};
       final topLevelComments = <Comment>[];
 
@@ -91,15 +94,16 @@ class CommentController extends GetxController {
         }
       }
 
-      topLevelComments.sort((a,b) => b.createdAt.compareTo(a.createdAt));
+      topLevelComments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       comments.assignAll(topLevelComments);
-
     } catch (e) {
+      print('Fetch Comments Error: $e'); // Debug log
       Get.snackbar('Lỗi tải dữ liệu', 'Không thể tải bình luận: ${e.toString()}');
     } finally {
       if (!isRefresh) isLoading.value = false;
     }
   }
+  // Trong file comment_controller.dart
 
   Future<void> addComment() async {
     final text = textController.text.trim();
@@ -113,36 +117,74 @@ class CommentController extends GetxController {
         'content': text,
         'video_id': videoId,
         'user_id': currentUserId!,
-        // NOTE: Đảm bảo 'parent_comment_id' trong DB có thể nhận giá trị null
-        // và kiểu dữ liệu của nó khớp với kiểu của ID (ví dụ: bigint hoặc uuid)
         'parent_comment_id': parentIdValue,
       };
 
-      // Tối ưu: Sau khi insert, không cần select lại mà gọi fetchComments
-      await supabase.from('comments').insert(payload);
+      final response = await supabase.from('comments').insert(payload).select(_commentSelectQuery).single();
+      final newComment = Comment.fromSupabase(response, currentUserId: currentUserId!);
 
-      // Tải lại để đảm bảo trạng thái (like,...) được cập nhật đúng
-      await fetchComments(isRefresh: true);
+      // Cập nhật UI của comment sheet (code này của bạn đã đúng)
+      if (parentIdValue != null) {
+        final parentComment = _findCommentById(parentIdValue);
+        if (parentComment != null) {
+          parentComment.replies.insert(0, newComment); // Thêm vào đầu danh sách trả lời
+        }
+      } else {
+        comments.insert(0, newComment);
+      }
+
+      // ✅ BƯỚC 1: ĐỒNG BỘ SỐ LƯỢNG VỚI HOMECONTROLLER
+      // Kiểm tra xem HomeController có đang chạy không rồi mới tìm
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        // Tìm video tương ứng trong danh sách của HomeController
+        final video = homeController.videoList.firstWhereOrNull((v) => v.id == videoId);
+        if (video != null) {
+          // Tăng số đếm comment của video đó lên
+          video.commentCount.value++;
+        }
+      }
 
       textController.clear();
       cancelReply();
-
     } catch (e) {
       Get.snackbar('Lỗi', 'Gửi bình luận thất bại: ${e.toString()}');
     } finally {
       isPostingComment.value = false;
     }
   }
+  // Trong file comment_controller.dart
 
-  // ✅ FIX: Hàm deleteComment đã được sửa lỗi và nhất quán
   Future<void> deleteComment(String commentId) async {
-    Get.back(); // Đóng bottom sheet
     deletingCommentIds.add(commentId);
+
+    final commentToDelete = _findCommentById(commentId);
+    if (commentToDelete == null) {
+      deletingCommentIds.remove(commentId);
+      return;
+    }
 
     try {
       await supabase.from('comments').delete().eq('id', commentId);
-      // Tải lại danh sách để UI được cập nhật chính xác nhất
-      await fetchComments(isRefresh: true);
+
+      final deletedCount = 1 + _countReplies(commentToDelete.replies);
+      if (Get.isRegistered<HomeController>()) {
+        final homeController = Get.find<HomeController>();
+        final video = homeController.videoList.firstWhereOrNull((v) => v.id == videoId);
+        if (video != null) {
+          // Trừ đi đúng số lượng đã xóa
+          video.commentCount.value -= deletedCount;
+        }
+      }
+
+      // Cập nhật UI của comment sheet (xóa ở local)
+      final parentComment = _findParentComment(commentId);
+      if (parentComment != null) {
+        parentComment.replies.remove(commentToDelete);
+      } else {
+        comments.remove(commentToDelete);
+      }
+
     } catch (e) {
       Get.snackbar('Lỗi', 'Không thể xóa bình luận: ${e.toString()}');
     } finally {
@@ -150,6 +192,12 @@ class CommentController extends GetxController {
     }
   }
 
+  Comment? _findParentComment(String commentId) {
+    for (var comment in comments) {
+      if (_findCommentInReplies(commentId, comment.replies) != null) return comment;
+    }
+    return null;
+  }
   Future<void> toggleLike(String commentId) async {
     if (currentUserId == null) return;
 
@@ -157,9 +205,7 @@ class CommentController extends GetxController {
     if (comment == null) return;
 
     final isCurrentlyLiked = comment.isLiked.value;
-
-    comment.isLiked.toggle();
-
+    comment.isLiked.value = !isCurrentlyLiked; // Optimistic update
     comment.likeCount.value += isCurrentlyLiked ? -1 : 1;
 
     try {
@@ -169,17 +215,14 @@ class CommentController extends GetxController {
           'user_id': currentUserId!,
         });
       } else {
-        // Like: Thêm record
         await supabase.from('comment_likes').insert({
           'comment_id': commentId,
           'user_id': currentUserId!,
         });
       }
     } catch (e) {
-      comment.isLiked.toggle();
-
+      comment.isLiked.value = isCurrentlyLiked; // Revert on error
       comment.likeCount.value += isCurrentlyLiked ? 1 : -1;
-
       Get.snackbar("Lỗi", "Thao tác thất bại, vui lòng thử lại.");
     }
   }

@@ -32,10 +32,10 @@ class ProfileView extends GetView<ProfileController> {
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        // ✅ FIX: Obx sẽ lắng nghe sự thay đổi của userProfile trong AuthService
         child: Obx(() {
-          // ✅ FIX: Cách kiểm tra trạng thái mới.
-          // Nếu profile trong service là null, coi như đang tải hoặc chưa đăng nhập.
+          if (controller.isLoadingProfile.value) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final profile = controller.userProfile;
           if (profile == null) {
             return Center(
@@ -47,19 +47,16 @@ class ProfileView extends GetView<ProfileController> {
                   ElevatedButton(
                     onPressed: () => Get.offAllNamed(Routes.LOGIN),
                     child: const Text('Đăng nhập'),
-                  )
+                  ),
                 ],
               ),
             );
           }
 
-          // ✅ FIX: Mọi dữ liệu giờ đây được lấy từ 'profile' object.
-          // Giao diện chính của bạn sẽ nằm ở đây.
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ✅ FIX: CircleAvatar cũng cần lắng nghe sự thay đổi của avatarUrl
                 Obx(() => CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.grey.shade200,
@@ -71,9 +68,6 @@ class ProfileView extends GetView<ProfileController> {
                       : null,
                 )),
                 const SizedBox(height: 16),
-
-                // ✅ FIX: Text hiển thị tên, dùng .value để lấy giá trị String
-                // và nó sẽ tự cập nhật khi tên thay đổi.
                 Obx(() => Text(
                   profile.fullName.value.isNotEmpty
                       ? profile.fullName.value
@@ -82,8 +76,6 @@ class ProfileView extends GetView<ProfileController> {
                   textAlign: TextAlign.center,
                 )),
                 const SizedBox(height: 8),
-
-                // Email thường không đổi, không cần Obx
                 Text(
                   controller.authService.supabase.auth.currentUser?.email ?? 'No email',
                   style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
@@ -92,7 +84,7 @@ class ProfileView extends GetView<ProfileController> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: controller.navigateToEditScreen,
+                    onPressed: controller.navigateToEditProfile,
                     icon: const Icon(Iconsax.edit),
                     label: const Text('Chỉnh sửa hồ sơ'),
                     style: ElevatedButton.styleFrom(
@@ -101,8 +93,6 @@ class ProfileView extends GetView<ProfileController> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Hiển thị thông tin chi tiết
                 Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -124,13 +114,6 @@ class ProfileView extends GetView<ProfileController> {
                             ? profile.fullName.value
                             : 'Chưa cập nhật'),
                       ),
-                      // Ví dụ nếu bạn có các trường khác
-                      // const Divider(height: 1),
-                      // ListTile(
-                      //   leading: const Icon(Iconsax.calendar),
-                      //   title: const Text('Ngày sinh'),
-                      //   subtitle: Text('Chưa cập nhật'),
-                      // ),
                     ],
                   )),
                 ),

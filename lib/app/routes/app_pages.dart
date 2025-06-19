@@ -60,9 +60,8 @@ class AppPages {
     ),
     GetPage(
       name: _Paths.EDIT_PROFILE, // Sử dụng Routes.EDIT_PROFILE
-      page: () => const ProfileView(),
-      binding:
-  ProfileBinding(),
+      page: () => const EditProfileView(),
+      binding: ProfileBinding(),
     ),
 
   ];

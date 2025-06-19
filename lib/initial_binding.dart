@@ -12,7 +12,5 @@ class InitialBinding extends Bindings {
     Get.lazyPut(() => AuthService(), fenix: true);
     Get.lazyPut(() => FollowService(), fenix: true);
     Get.lazyPut(() => LoginController(), fenix: true);
-
-    // Lưu ý: Không còn Get.put<MediaService>() ở đây nữa.
   }
 }

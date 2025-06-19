@@ -5,17 +5,25 @@ import 'package:iconsax/iconsax.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-// ✅ BƯỚC 3: IMPORT CÁC MODEL VÀ CONTROLLER THẬT
 import '../app/data/models/video_model.dart';
 import '../app/data/models/profile_model.dart';
+import '../app/modules/comment_sheet/comment_controller.dart';
 import '../app/modules/home/controllers/home_controller.dart';
 import '../app/modules/video_user/views/video_user_view.dart';
+import '../services/follow_service.dart';
+import 'comment_sheet.dart';
 
-// ✅ BƯỚC 2: TOÀN BỘ PHẦN MOCK DATA ĐÃ ĐƯỢC XÓA BỎ
 
-// Function to show a mock comment sheet (Giữ lại nếu bạn vẫn cần)
 void showCommentSheet(BuildContext context, {required String videoId}) {
-  // ... (code không đổi)
+  Get.lazyPut(() => CommentController(videoId: videoId)); // Khởi tạo CommentController
+
+  Get.bottomSheet(
+    const CommentSheet(), // HIỂN THỊ COMMENT SHEET Ở ĐÂY
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+  ).whenComplete(() {
+    Get.delete<CommentController>(); // Dọn dẹp controller khi sheet đóng
+  });
 }
 
 class VideoPlayerItem extends StatefulWidget {
@@ -27,9 +35,6 @@ class VideoPlayerItem extends StatefulWidget {
 }
 
 class _VideoPlayerItemState extends State<VideoPlayerItem> {
-  // ✅ BƯỚC 3: SỬA LẠI CÁCH LẤY CONTROLLER
-  // Dùng Get.find() để lấy controller đã được khởi tạo từ trước (trong Bindings)
-  // thay vì tạo ra một MockHomeController mới.
   final HomeController controller = Get.find<HomeController>();
 
   late CachedVideoPlayerPlusController _videoController;
@@ -149,19 +154,18 @@ class _ActionButtonsColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Lấy controller bằng Get.find() để gọi hàm toggleFollow
     final HomeController controller = Get.find<HomeController>();
-
     return Positioned(
       right: 10, bottom: 60,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Truyền hàm toggleFollow vào
-          _ProfileAvatarButton(author: video.author, isFollowed: video.isFollowedByCurrentUser, onFollow: () => controller.toggleFollow(video.author.id)),
+          _ProfileAvatarButton(author: video.author),
           const SizedBox(height: 25),
           _LikeButton(onTap: onLike, isLiked: video.isLikedByCurrentUser, likeCount: video.likeCount),
           const SizedBox(height: 25),
+          // Sử dụng video.commentCount.value.toString() cho số lượng
           GestureDetector(onTap: onComment, child: Obx(() => _ActionButton(icon: Iconsax.message, text: video.commentCount.value.toString()))),
           const SizedBox(height: 25),
           const _ActionButton(icon: Iconsax.send_1, text: 'Share'),
@@ -173,27 +177,33 @@ class _ActionButtonsColumn extends StatelessWidget {
 
 class _ProfileAvatarButton extends GetView<HomeController> {
   final Profile author;
-  final RxBool isFollowed;
-  final VoidCallback onFollow;
 
-  const _ProfileAvatarButton({required this.author, required this.isFollowed, required this.onFollow});
+
+  const _ProfileAvatarButton({required this.author});
 
   @override
   Widget build(BuildContext context) {
-    // So sánh trực tiếp, không cần .value
+    final FollowService followService = Get.find();
     final bool isOwnVideo = author.id == controller.currentUserId;
     return Column(children: [
       Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
         GestureDetector(
           onTap: () => Get.toNamed('/user', arguments: author.id),          child: Obx(() => CircleAvatar(
-            radius: 25, backgroundColor: Colors.white,
-            backgroundImage: author.avatarUrl.value.isNotEmpty ? CachedNetworkImageProvider(author.avatarUrl.value) : null,
-            child: author.avatarUrl.value.isEmpty ? const Icon(Iconsax.user, color: Colors.grey, size: 30) : null,
-          )),
+          radius: 25, backgroundColor: Colors.white,
+          backgroundImage: author.avatarUrl.value.isNotEmpty ? CachedNetworkImageProvider(author.avatarUrl.value) : null,
+          child: author.avatarUrl.value.isEmpty ? const Icon(Iconsax.user, color: Colors.grey, size: 30) : null,
+        )),
         ),
         if (!isOwnVideo)
-          Obx(() => !isFollowed.value
-              ? Positioned(bottom: -10, child: GestureDetector(onTap: onFollow, child: Container(padding: const EdgeInsets.all(2), decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 1.5)), child: const Icon(Icons.add, color: Colors.white, size: 16))))
+          Obx(() => !followService.isFollowing(author.id) // <--- Lắng nghe nguồn chân lý
+              ? Positioned(
+              bottom: -10,
+              child: GestureDetector(
+                  onTap: () => controller.toggleFollow(author.id), // <--- Gọi hàm của controller
+                  child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 1.5)),
+                      child: const Icon(Icons.add, color: Colors.white, size: 16))))
               : const SizedBox.shrink()),
       ]),
     ]);

@@ -34,8 +34,13 @@ class Comment {
 
   factory Comment.fromSupabase(Map<String, dynamic> json, {required String currentUserId}) {
     final likesData = json['comment_likes'] as List? ?? [];
-    if (json['profiles'] == null) {
-      throw Exception('Comment with id ${json['id']} is missing profile data.');
+    var profileJson = json['profiles'] as Map<String, dynamic>?;
+
+    // SỬA LỖI 2: Xử lý profile bị thiếu một cách an toàn thay vì throw exception
+    if (profileJson == null) {
+      print('Warning: Comment with id ${json['id']} is missing profile data. Using default author.');
+      // Tạo một profile mặc định khi dữ liệu bị thiếu
+      profileJson = {};
     }
 
     return Comment(
@@ -45,7 +50,8 @@ class Comment {
       userId: json['user_id'],
       videoId: json['video_id'],
       parentCommentId: json['parent_comment_id']?.toString(),
-      author: Profile.fromJson(json['profiles']),
+      // SỬA LỖI 1: Truyền đúng `currentUserId` vào cho Profile.fromJson
+      author: Profile.fromJson(profileJson, currentUserId: currentUserId),
       initialLikeCount: likesData.length,
       initialIsLiked: currentUserId.isNotEmpty && likesData.any((like) => like['user_id'] == currentUserId),
     );

@@ -111,7 +111,6 @@ class VideoUserView extends GetView<VideoUserController> {
   Widget _buildStatColumn(String label, RxInt value) {
     return Column(
       children: [
-        // ✅ TỐI ƯU 2: BỌC TEXT TRONG OBX ĐỂ NÓ TỰ ĐỘNG CẬP NHẬT
         Obx(() => Text(
           value.value.toString(),
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -126,18 +125,20 @@ class VideoUserView extends GetView<VideoUserController> {
     return Obx(() => SizedBox(
       width: double.infinity,
       child: controller.isMyProfile
-          ? OutlinedButton(onPressed: () { /* TODO: Implement Edit Profile */ }, child: const Text('Edit Profile'))
+          ? OutlinedButton(onPressed: () {
+        Get.toNamed(Routes.PROFILE);
+      },
+        child: const Text('Edit Profile'),)
           : ElevatedButton(
         onPressed: controller.toggleFollow,
         style: ElevatedButton.styleFrom(
-          backgroundColor: controller.isFollowing.value ? Colors.grey.shade300 : Colors.red,
-          foregroundColor: controller.isFollowing.value ? Colors.black : Colors.white,
+          backgroundColor: controller.isFollowing? Colors.grey.shade300 : Colors.red,
+          foregroundColor: controller.isFollowing ? Colors.black : Colors.white,
         ),
-        child: Text(controller.isFollowing.value ? 'Unfollow' : 'Follow'),
+        child: Text(controller.isFollowing ? 'Unfollow' : 'Follow'),
       ),
     ));
   }
-
   Widget _buildVideoGrid() {
     return Obx(() {
       if (controller.userVideos.isEmpty && !controller.isLoading.value) {
@@ -177,7 +178,6 @@ class VideoUserView extends GetView<VideoUserController> {
       );
     });
   }
-
   void _showVideoOptions(BuildContext context, Video video) {
     Get.bottomSheet(
       Wrap(

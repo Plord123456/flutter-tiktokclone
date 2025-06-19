@@ -1,43 +1,74 @@
 import 'package:get/get.dart';
-import 'profile_model.dart'; // <-- Quan trọng: import Profile model
+import 'profile_model.dart'; // Import Profile model
+
+// Helper function này đã rất tốt, giữ nguyên
+int _parseCountFromList(dynamic jsonField) {
+  if (jsonField is List && jsonField.isNotEmpty) {
+    return (jsonField.first as Map<String, dynamic>?)?['count'] as int? ?? 0;
+  }
+  return 0;
+}
+
 
 class Video {
   final String id, videoUrl, title, thumbnailUrl;
   final DateTime createdAt;
   final Profile author;
   late final RxInt likeCount, commentCount;
-  late final RxBool isLikedByCurrentUser, isFollowedByCurrentUser; // <-- Đổi tên từ isFollowed
+  late final RxBool isLikedByCurrentUser, isFollowedByCurrentUser;
 
   Video({
-    required this.id, required this.videoUrl, required this.title,
-    required this.thumbnailUrl, required this.createdAt, required this.author,
-    required int initialLikeCount, required int initialCommentCount,
-    required bool initialIsLiked, required bool initialIsFollowed,
+    required this.id,
+    required this.videoUrl,
+    required this.title,
+    required this.thumbnailUrl,
+    required this.createdAt,
+    required this.author,
+    required int initialLikeCount,
+    required int initialCommentCount,
+    required bool initialIsLiked,
+    required bool initialIsFollowed,
   }) {
     likeCount = initialLikeCount.obs;
     commentCount = initialCommentCount.obs;
     isLikedByCurrentUser = initialIsLiked.obs;
-    isFollowedByCurrentUser = initialIsFollowed.obs; // <-- Đổi tên từ isFollowed
+    isFollowedByCurrentUser = initialIsFollowed.obs;
   }
 
+  // ✅ PHIÊN BẢN FACTORY HOÀN CHỈNH VÀ ĐÚNG LOGIC
   factory Video.fromSupabase(Map<String, dynamic> json, {
-    required String currentUserId, required bool isFollowed,
+    required String currentUserId,
+    required bool isFollowed,
+    bool isLiked = false, // Tham số này sẽ được HomeController truyền vào
+    Profile? author,
   }) {
-    final likesData = json['likes'] as List? ?? [];
-    final commentsCountData = json['comments_count'] as List? ?? [];
-    if (json['profiles'] == null) {
-      throw Exception('Video with id ${json['id']} is missing profile data.');
-    }
+    final createdAtStr = json['created_at'] as String?;
+    final createdAt = createdAtStr != null ? DateTime.tryParse(createdAtStr) ?? DateTime.now() : DateTime.now();
+
+    // Logic xử lý author đã đúng
+    final finalAuthor = author ?? Profile.fromJson(
+      json['profiles'] as Map<String, dynamic>? ?? {},
+      currentUserId: currentUserId,
+    );
+
+    // ✅ SỬA LẠI HOÀN TOÀN LOGIC LẤY LIKE VÀ COMMENT
+    // Lấy tổng số lượt thích từ trường 'likes_count' mà HomeController trả về
+    final initialLikeCount = _parseCountFromList(json['likes_count']);
+
+    // Lấy tổng số bình luận từ trường 'comments_count'
+    final initialCommentCount = _parseCountFromList(json['comments_count']);
+
     return Video(
-      id: json['id'],
-      videoUrl: json['video_url'],
-      title: json['title'] ?? '',
-      thumbnailUrl: json['thumbnail_url'] ?? '',
-      createdAt: DateTime.parse(json['created_at']),
-      author: Profile.fromJson(json['profiles']),
-      initialLikeCount: likesData.length,
-      initialCommentCount: commentsCountData.isNotEmpty ? commentsCountData.first['count'] : 0,
-      initialIsLiked: currentUserId.isNotEmpty && likesData.any((like) => like['user_id'] == currentUserId),
+      id: json['id'] as String? ?? '',
+      videoUrl: json['video_url'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      thumbnailUrl: json['thumbnail_url'] as String? ?? '',
+      createdAt: createdAt,
+      author: finalAuthor,
+      initialLikeCount: initialLikeCount,
+      initialCommentCount: initialCommentCount,
+      // Sử dụng trực tiếp giá trị isLiked được truyền từ HomeController
+      initialIsLiked: isLiked,
       initialIsFollowed: isFollowed,
     );
   }

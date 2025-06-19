@@ -17,7 +17,7 @@ class VideoUserController extends GetxController {
   final Rx<String> profileUserId = ''.obs;
   final Rxn<Profile> userProfile = Rxn<Profile>();
   final RxList<Video> userVideos = <Video>[].obs;
-  final RxBool isFollowing = false.obs;
+  bool get isFollowing => followService.isFollowing(profileUserId.value);
 
   // --- State cho việc tải dữ liệu ---
   final RxBool isLoading = true.obs;
@@ -49,9 +49,7 @@ class VideoUserController extends GetxController {
       }
     });
 
-    followService.followedUserIds.listen((followedIds) {
-      isFollowing.value = followedIds.contains(profileUserId.value);
-    });
+
 
     fetchData();
   }
@@ -94,7 +92,8 @@ class VideoUserController extends GetxController {
           .eq('id', profileUserId.value)
           .maybeSingle();
 
-      userProfile.value = response == null ? null : Profile.fromJson(response);
+      userProfile.value = response == null ? null : Profile.fromJson(response, currentUserId:
+      currentUserId);
     } catch (e) {
       print("Lỗi trong fetchUserProfile: $e");
       userProfile.value = null;
@@ -180,5 +179,6 @@ class VideoUserController extends GetxController {
       Get.snackbar('Lỗi', 'Không thể xóa video, vui lòng thử lại.');
       fetchData();
     }
+
   }
 }

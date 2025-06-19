@@ -15,10 +15,8 @@ import 'firebase_options.dart';
 import 'initial_binding.dart';
 
 void main() async {
-  // Đảm bảo các thành phần Flutter đã sẵn sàng
   WidgetsFlutterBinding.ensureInitialized();
-  // --- SỬA LỖI: Lấy kết quả từ Future.wait đúng cách ---
-  // Chạy các tác vụ khởi tạo song song và nhận kết quả là một List.
+
   final results = await Future.wait([
     Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
     Supabase.initialize(
@@ -28,16 +26,12 @@ void main() async {
     SharedPreferences.getInstance(),
   ]);
 
-  // Lấy đối tượng SharedPreferences từ danh sách kết quả ở vị trí thứ 3 (index 2)
-  // và ép kiểu nó một cách tường minh.
   final SharedPreferences prefs = results[2] as SharedPreferences;
   bool isDarkTheme = prefs.getBool('isDarkTheme') ?? true;
 
-  // Đặt chế độ UI cho toàn màn hình
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   runApp(
-    // Sử dụng Provider để quản lý theme
     ChangeNotifierProvider<ThemeModel>(
       create: (_) => ThemeModel(isDarkTheme),
       child: const MyApp(),
@@ -51,7 +45,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeModel>(builder: (context, themeModel, child) {
-      // Tạo theme dựa trên trạng thái hiện tại
       TextTheme textTheme = createTextTheme(context, 'Lexend', "Lexend");
       MaterialTheme theme = MaterialTheme(textTheme);
 

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // Thêm import này
+import 'package:cached_network_image/cached_network_image.dart';
 import '../controllers/profile_controller.dart';
 
 class EditProfileView extends GetView<ProfileController> {
@@ -34,18 +34,15 @@ class EditProfileView extends GetView<ProfileController> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // --- PHẦN HIỂN THỊ AVATAR ---
               Obx(() {
                 final newImage = controller.selectedImage.value;
-                // SỬA LỖI Ở ĐÂY
-                final existingAvatarUrl = controller.userProfile?.avatarUrl;
+                final existingAvatarUrl = controller.userProfile?.avatarUrl.value;
                 ImageProvider? backgroundImage;
 
                 if (newImage != null) {
                   backgroundImage = FileImage(newImage);
                 } else if (existingAvatarUrl != null && existingAvatarUrl.isNotEmpty) {
-                  // Cải tiến: Dùng CachedNetworkImageProvider
-                  backgroundImage = CachedNetworkImageProvider(existingAvatarUrl.value);
+                  backgroundImage = CachedNetworkImageProvider(existingAvatarUrl);
                 }
 
                 return CircleAvatar(
@@ -62,7 +59,6 @@ class EditProfileView extends GetView<ProfileController> {
                 child: const Text('Thay đổi ảnh đại diện'),
               ),
               const SizedBox(height: 24),
-              // --- CÁC TRƯỜNG NHẬP LIỆU ---
               TextFormField(
                 controller: controller.nameController,
                 decoration: const InputDecoration(
@@ -90,7 +86,6 @@ class EditProfileView extends GetView<ProfileController> {
                     lastDate: DateTime.now(),
                   );
                   if (pickedDate != null) {
-                    // Định dạng ngày tháng theo chuẩn
                     String formattedDate =
                         "${pickedDate.day.toString().padLeft(2, '0')}/${pickedDate.month.toString().padLeft(2, '0')}/${pickedDate.year}";
                     controller.dobController.text = formattedDate;

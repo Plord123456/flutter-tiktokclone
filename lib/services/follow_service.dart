@@ -1,13 +1,8 @@
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// FollowService
-///
-/// Service tập trung, chịu trách nhiệm cho tất cả các logic liên quan đến
-/// việc theo dõi (follow) và bỏ theo dõi (unfollow) người dùng.
 class FollowService extends GetxService {
-  // --- SỬA LỖI 1: Đưa các biến vào trong class ---
-  // Giúp code được đóng gói tốt hơn và tránh biến toàn cục.
+  final RxBool isLoading = false.obs;
   final supabase = Supabase.instance.client;
 
   /// Lấy ID của người dùng đang đăng nhập.
@@ -16,12 +11,21 @@ class FollowService extends GetxService {
   // --- SỬA LỖI 2: Xóa khai báo bị trùng lặp ---
   // Giữ lại một khai báo duy nhất và đúng cú pháp cho RxSet.
   final RxSet<String> followedUserIds = <String>{}.obs;
-
+  void _listenToFollowChanges() {
+    supabase
+        .from('follows')
+        .stream(primaryKey: ['follower_id', 'following_id']) // Giả sử đây là PK
+        .eq('follower_id', currentUserId!)
+        .listen((List<Map<String, dynamic>> data) {
+      final newIds = data.map<String>((item) => item['following_id']).toSet();
+      followedUserIds.assignAll(newIds);
+    });
+  }
   @override
   void onInit() {
     super.onInit();
-    // Khi service được khởi tạo, gọi hàm để lấy danh sách follow ban đầu.
     _fetchInitialFollows();
+    _listenToFollowChanges();
   }
 
   /// Lấy danh sách những người mình đang follow từ database khi khởi động.
@@ -32,9 +36,7 @@ class FollowService extends GetxService {
           .from('follows')
           .select('following_id')
           .eq('follower_id', currentUserId!);
-
       if (response.isNotEmpty) {
-        // Chuyển đổi danh sách kết quả thành một Set các ID.
         final ids = response.map<String>((item) => item['following_id']).toSet();
         followedUserIds.assignAll(ids);
       }
@@ -42,14 +44,21 @@ class FollowService extends GetxService {
       print('Error fetching initial follows: $e');
     }
   }
-
-  /// Hàm chính để xử lý việc follow hoặc unfollow.
-  /// Nó sẽ tự kiểm tra trạng thái hiện tại để quyết định hành động phù hợp.
+  void clearStateOnLogout() {
+    followedUserIds.clear();
+  }
   Future<void> toggleFollow(String userId) async {
-    if (followedUserIds.contains(userId)) {
-      await unfollowUser(userId);
-    } else {
-      await followUser(userId);
+    if (isLoading.isTrue) return; // Không cho thực hiện nếu đang có tác vụ khác
+
+    isLoading.value = true; // Bắt đầu xử lý
+    try {
+      if (followedUserIds.contains(userId)) {
+        await unfollowUser(userId);
+      } else {
+        await followUser(userId);
+      }
+    } finally {
+      isLoading.value = false; // Luôn đảm bảo trả về false sau khi xong
     }
   }
 
@@ -95,7 +104,6 @@ class FollowService extends GetxService {
     }
   }
 
-  /// Hàm tiện ích để kiểm tra xem có đang follow một user cụ thể hay không.
   bool isFollowing(String userId) {
     return followedUserIds.contains(userId);
   }
