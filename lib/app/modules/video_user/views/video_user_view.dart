@@ -13,7 +13,7 @@ import '../../profile/views/edit_profile_view.dart';
 import '../controllers/video_user_controller.dart';
 
 class VideoUserView extends GetView<VideoUserController> {
-  const VideoUserView({Key? key}) : super(key: key);
+  const VideoUserView({Key? key, required String profileId}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

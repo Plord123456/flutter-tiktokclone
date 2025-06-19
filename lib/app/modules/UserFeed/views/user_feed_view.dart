@@ -26,7 +26,7 @@ class UserFeedView extends GetView<UserFeedController> {
         itemBuilder: (context, index) {
           final video = controller.videos[index];
           // VideoPlayerItem chịu trách nhiệm hiển thị từng video
-          return VideoPlayerItem(video: video, index:index,);
+          return VideoPlayerItem(video: video, index:index, profileId:);
         },
         // ✅ ĐÂY LÀ PHẦN SỬA LỖI QUAN TRỌNG NHẤT
         onPageChanged: (index) {

@@ -26,7 +26,7 @@ class HomeView extends GetView<HomeController> {
             itemBuilder: (context, index) {
               final video = controller.videoList[index];
               return VideoPlayerItem( video: video,
-                index: index, );
+                index: index, userId: '', profileId: null, );
               },
             onPageChanged: (index) {
               // Tải thêm video khi người dùng cuộn gần đến cuối

@@ -16,11 +16,12 @@ import '../app/modules/video_user/views/video_user_view.dart';
 class VideoPlayerItem extends StatelessWidget { // Chuyển thành StatelessWidget
   final Video video;
   final int index;
+  final String userId;
 
   const VideoPlayerItem({
     required this.video,
     required this.index,
-    super.key,
+    super.key, required this.userId, required profileId,
   });
 
   @override
