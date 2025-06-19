@@ -43,7 +43,12 @@ class ChatDetailView extends GetView<ChatDetailController> {
                     final message = controller.messages[index];
                     final isMe = message.senderId == controller.currentUserId;
 
-                    return _buildMessageBubble(isMe, message.content);
+                    // Bọc bong bóng chat trong GestureDetector
+                    return GestureDetector(
+                      // Kích hoạt hàm xóa khi nhấn giữ
+                      onLongPress: isMe ? () => controller.confirmDeleteMessage(message) : null,
+                      child: _buildMessageBubble(isMe, message.content),
+                    );
                   },
                 );
               },

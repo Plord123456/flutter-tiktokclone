@@ -67,32 +67,22 @@ class ChatService extends GetxService {
     });
   }
 
-  // ==========================================================
-  // HÀM SUBSCRIBE ĐƯỢC VIẾT LẠI HOÀN TOÀN BẰNG .stream()
-  // ==========================================================
+  Future<void> deleteMessage(String messageId) async {
+    await supabase.from('messages').delete().eq('id', messageId);
+  }
   StreamSubscription<List<Map<String, dynamic>>> subscribeToMessages(
-      String conversationId, Function(Message) onNewMessage) {
-
-    // Tạo một stream trực tiếp từ bảng 'messages'
+      String conversationId, Function(List<Map<String, dynamic>>) onNewPayload) {
     final stream = supabase
         .from('messages')
-        .stream(primaryKey: ['id']) // Cần chỉ định khóa chính
-        .eq('conversation_id', conversationId); // Lọc theo đúng conversation ID
+        .stream(primaryKey: ['id'])
+        .eq('conversation_id', conversationId);
 
-    // Lắng nghe stream này
+    // Lắng nghe stream này và truyền toàn bộ payload về cho controller xử lý
     final subscription = stream.listen((payload) {
-      // Khi có bản ghi mới được INSERT, stream sẽ trả về một List
-      // chứa tất cả các record khớp với câu query, bao gồm cả record mới.
-      if (payload.isNotEmpty) {
-        // Chúng ta sẽ lấy record mới nhất dựa trên thời gian tạo
-        payload.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
-        final lastRecord = payload.first;
-
-        final newMessage = Message.fromJson(lastRecord);
-        onNewMessage(newMessage);
-      }
+      onNewPayload(payload);
     });
 
     return subscription;
   }
+
 }
