@@ -174,7 +174,7 @@ class _ProfileAvatarButton extends StatelessWidget {
     return Column(children: [
       Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
         GestureDetector(
-          onTap: () => Get.to(() => VideoUserView(userId: author.id)),
+          onTap: () => Get.to(() => VideoUserView(profileId: author.id)),
           child: Obx(() => CircleAvatar(
             radius: 25,
             backgroundColor: Colors.white,
