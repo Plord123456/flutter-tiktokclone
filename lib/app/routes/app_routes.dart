@@ -12,6 +12,8 @@ abstract class Routes {
   static const USER_PROFILE = _Paths.USER_PROFILE; // ✅ ĐỔI TÊN CHO RÕ NGHĨA
   static const USER_FEED = _Paths.USER_FEED;
   static const EDIT_PROFILE = _Paths.EDIT_PROFILE;
+  static const CHAT_LIST = _Paths.CHAT_LIST;
+  static const CHAT_DETAIL = _Paths.CHAT_DETAIL;
 }
 
 abstract class _Paths {
@@ -22,7 +24,9 @@ abstract class _Paths {
   static const PROFILE = '/profile';
   static const UPLOAD_VIDEO = '/upload-video'; // ✅ SỬA CHÍNH TẢ
   static const CONFIRM_UPLOAD = '/confirm-upload';
-  static const USER_PROFILE = '/user-profile';   // ✅ ĐỔI TÊN CHO RÕ NGHĨA
+  static const USER_PROFILE = '/user-profile'; // ✅ ĐỔI TÊN CHO RÕ NGHĨA
   static const EDIT_PROFILE = '/profile/edit';
   static const USER_FEED = '/user-feed';
+  static const CHAT_LIST = '/chat-list';
+  static const CHAT_DETAIL = '/chat-detail';
 }

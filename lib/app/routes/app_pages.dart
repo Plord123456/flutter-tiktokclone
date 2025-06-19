@@ -1,7 +1,12 @@
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../modules/UserFeed/bindings/user_feed_binding.dart';
 import '../modules/UserFeed/views/user_feed_view.dart';
+import '../modules/chat_detail/bindings/chat_detail_binding.dart';
+import '../modules/chat_detail/views/chat_detail_view.dart';
+import '../modules/chat_list/bindings/chat_list_binding.dart';
+import '../modules/chat_list/views/chat_list_view.dart';
 import '../modules/confirm_upload/views/confirm_upload_view.dart';
 import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
@@ -63,6 +68,15 @@ class AppPages {
       page: () => const EditProfileView(),
       binding: ProfileBinding(),
     ),
-
+    GetPage(
+      name: _Paths.CHAT_LIST,
+      page: () => const ChatListView(),
+      binding: ChatListBinding(),
+    ),
+    GetPage(
+      name: _Paths.CHAT_DETAIL,
+      page: () => const ChatDetailView(),
+      binding: ChatDetailBinding(),
+    ),
   ];
 }
