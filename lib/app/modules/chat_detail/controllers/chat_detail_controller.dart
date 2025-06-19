@@ -6,8 +6,9 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tiktok_clone/app/data/models/conversation_model.dart';
 import 'package:tiktok_clone/app/data/models/message_model.dart';
-import 'package:tiktok_clone/services/auth_service.dart';
 import 'package:tiktok_clone/services/chat_service.dart';
+
+import '../../../../services/auth_service.dart';
 
 class ChatDetailController extends GetxController {
   final ChatService _chatService = Get.find();
@@ -16,15 +17,24 @@ class ChatDetailController extends GetxController {
 
   // Trạng thái chung
   final isLoading = true.obs;
-  final Rx<Conversation> conversation = Rx<Conversation>(Get.arguments);
+  late final Rx<Conversation> conversation;
   final messageInputController = TextEditingController();
   final scrollController = ScrollController();
 
   // Dữ liệu tin nhắn
   final messages = <Message>[].obs;
-  late final RealtimeChannel messageSubscription;
+  // THAY ĐỔI 1: Kiểu dữ liệu của subscription đã thay đổi
+  late final StreamSubscription messageSubscription;
 
   String get currentUserId => _authService.currentUserId;
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Gán arguments trong onInit để đảm bảo an toàn
+    conversation = Rx<Conversation>(Get.arguments);
+  }
+
   @override
   void onReady() {
     super.onReady();
@@ -67,7 +77,6 @@ class ChatDetailController extends GetxController {
     messageInputController.clear();
     await _chatService.sendMessage(conversation.value.id, content);
 
-    // Scroll xuống cuối khi gửi tin nhắn
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scrollController.hasClients) {
         scrollController.animateTo(
@@ -83,8 +92,7 @@ class ChatDetailController extends GetxController {
   void onClose() {
     messageInputController.dispose();
     scrollController.dispose();
-    // Rất quan trọng: Hủy lắng nghe để tránh memory leak
-    supabase.removeChannel(messageSubscription);
+    messageSubscription.cancel();
     super.onClose();
   }
 }

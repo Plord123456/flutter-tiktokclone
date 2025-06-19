@@ -4,25 +4,20 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tiktok_clone/app/data/models/conversation_model.dart';
+import 'package:tiktok_clone/app/data/models/message_model.dart';
 import 'package:tiktok_clone/app/data/models/profile_model.dart';
-import '../app/data/models/conversation_model.dart';
-import '../app/data/models/message_model.dart';
 
 class ChatService extends GetxService {
   final supabase = Supabase.instance.client;
+
   String get currentUserId => supabase.auth.currentUser!.id;
 
-  /// Tìm hoặc tạo một cuộc trò chuyện giữa 2 người và trả về ID của nó.
-  /// Sử dụng một Stored Procedure (RPC) trên Supabase để tối ưu hiệu suất.
   Future<String?> findOrCreateConversation(String otherUserId) async {
     if (otherUserId == currentUserId) return null;
-
     try {
-      final data = await supabase.rpc('find_or_create_conversation', params: {
-        'user1_id': currentUserId,
-        'user2_id': otherUserId,
-      });
-      // RPC sẽ trả về conversation_id
+      final data = await supabase.rpc('find_or_create_conversation',
+          params: {'user1_id': currentUserId, 'user2_id': otherUserId});
       return data as String?;
     } catch (e) {
       Get.snackbar('Lỗi', 'Không thể bắt đầu cuộc trò chuyện: $e');
@@ -30,16 +25,13 @@ class ChatService extends GetxService {
     }
   }
 
-  /// Lấy danh sách tất cả các cuộc trò chuyện của người dùng hiện tại.
-  /// Mỗi cuộc trò chuyện sẽ bao gồm thông tin của người đối diện và tin nhắn cuối cùng.
   Future<List<Conversation>> getConversations() async {
     try {
-      // Dùng RPC để lấy danh sách conversations, đã join sẵn thông tin profile và last_message
-      final response = await supabase
-          .rpc('get_user_conversations', params: {'p_user_id': currentUserId});
-
+      final response = await supabase.rpc('get_user_conversations',
+          params: {'p_user_id': currentUserId});
       final conversations = (response as List<dynamic>)
-          .map((json) => Conversation.fromJson(json, currentUserId: currentUserId))
+          .map((json) =>
+          Conversation.fromJson(json, currentUserId: currentUserId))
           .toList();
       return conversations;
     } catch (e) {
@@ -48,9 +40,8 @@ class ChatService extends GetxService {
     }
   }
 
-
-  /// Lấy tin nhắn của một cuộc trò chuyện cụ thể, hỗ trợ phân trang.
-  Future<List<Message>> getMessages(String conversationId, {int page = 1, int pageSize = 20}) async {
+  Future<List<Message>> getMessages(String conversationId,
+      {int page = 1, int pageSize = 20}) async {
     final from = (page - 1) * pageSize;
     final to = from + pageSize - 1;
     try {
@@ -60,7 +51,6 @@ class ChatService extends GetxService {
           .eq('conversation_id', conversationId)
           .order('created_at', ascending: false)
           .range(from, to);
-
       return response.map((json) => Message.fromJson(json)).toList();
     } catch (e) {
       print('Lỗi khi tải tin nhắn: $e');
@@ -68,11 +58,8 @@ class ChatService extends GetxService {
     }
   }
 
-
-  /// Gửi một tin nhắn mới.
   Future<void> sendMessage(String conversationId, String content) async {
     if (content.trim().isEmpty) return;
-
     await supabase.from('messages').insert({
       'conversation_id': conversationId,
       'sender_id': currentUserId,
@@ -80,28 +67,32 @@ class ChatService extends GetxService {
     });
   }
 
+  // ==========================================================
+  // HÀM SUBSCRIBE ĐƯỢC VIẾT LẠI HOÀN TOÀN BẰNG .stream()
+  // ==========================================================
+  StreamSubscription<List<Map<String, dynamic>>> subscribeToMessages(
+      String conversationId, Function(Message) onNewMessage) {
 
-  /// Lắng nghe tin nhắn mới trong thời gian thực.
-  RealtimeChannel subscribeToMessages(String conversationId, Function(Message) onNewMessage) {
-    final channel = supabase.channel('chat_$conversationId');
-    channel
-        .on(
-      RealtimeListenTypes.postgresChanges,
-      ChannelFilter(
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: 'conversation_id=eq.$conversationId',
-      ),
-          (payload, [ref]) {
-        // Dữ liệu của record mới nằm trong payload['new']
-        final newRecord = payload['new'] as Map<String, dynamic>;
-        final newMessage = Message.fromJson(newRecord);
+    // Tạo một stream trực tiếp từ bảng 'messages'
+    final stream = supabase
+        .from('messages')
+        .stream(primaryKey: ['id']) // Cần chỉ định khóa chính
+        .eq('conversation_id', conversationId); // Lọc theo đúng conversation ID
+
+    // Lắng nghe stream này
+    final subscription = stream.listen((payload) {
+      // Khi có bản ghi mới được INSERT, stream sẽ trả về một List
+      // chứa tất cả các record khớp với câu query, bao gồm cả record mới.
+      if (payload.isNotEmpty) {
+        // Chúng ta sẽ lấy record mới nhất dựa trên thời gian tạo
+        payload.sort((a, b) => DateTime.parse(b['created_at']).compareTo(DateTime.parse(a['created_at'])));
+        final lastRecord = payload.first;
+
+        final newMessage = Message.fromJson(lastRecord);
         onNewMessage(newMessage);
-      },
-    )
-        .subscribe();
+      }
+    });
 
-    return channel;
+    return subscription;
   }
 }
