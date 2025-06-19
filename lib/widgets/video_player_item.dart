@@ -11,6 +11,8 @@ import 'package:tiktok_clone/app/modules/home/controllers/home_controller.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 import 'package:tiktok_clone/widgets/comment_sheet.dart';
 
+import '../app/modules/video_user/views/video_user_view.dart';
+
 class VideoPlayerItem extends StatelessWidget { // Chuyển thành StatelessWidget
   final Video video;
   final int index;
@@ -23,15 +25,10 @@ class VideoPlayerItem extends StatelessWidget { // Chuyển thành StatelessWidg
 
   @override
   Widget build(BuildContext context) {
-    // Lấy HomeController, là nơi quản lý tất cả state
     final HomeController homeController = Get.find<HomeController>();
-
-    // Dùng GetBuilder để lắng nghe cập nhật và rebuild widget này
-    // khi controller của nó được khởi tạo xong.
     return GetBuilder<HomeController>(
       id: video.id, // Rất quan trọng: Chỉ rebuild widget này khi có update với ID này
       builder: (controller) {
-        // Lấy controller từ HomeController thay vì tự tạo
         final videoPlayerController = controller.getControllerForIndex(index);
 
         // Hiển thị vòng xoay trong khi controller đang được khởi tạo

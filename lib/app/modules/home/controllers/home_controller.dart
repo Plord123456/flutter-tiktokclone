@@ -1,12 +1,10 @@
-// lib/app/modules/home/controllers/home_controller.dart
-
+import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tiktok_clone/app/data/models/video_model.dart';
 import 'package:tiktok_clone/services/auth_service.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
-import 'package:video_player/video_player.dart';
 
 class HomeController extends GetxController {
   // Services
@@ -21,34 +19,31 @@ class HomeController extends GetxController {
   final hasMoreVideos = true.obs;
   final _videoPageSize = 5;
 
-  // State cho chức năng Like (Tối ưu)
+  // State cho chức năng Like
   final RxSet<String> likedVideoIds = <String>{}.obs;
   final _likingInProgress = <String>{}.obs;
   String get currentUserId => authService.currentUserId;
 
-  // ==========================================================
   // STATE ĐỂ QUẢN LÝ VIDEO PLAYER
-  // ==========================================================
   final PageController pageController = PageController();
   final RxInt currentVideoIndex = 0.obs;
-  final Map<int, VideoPlayerController> _videoControllers = {};
-
+  final Map<int, CachedVideoPlayerPlusController> _videoControllers = {};
 
   @override
   void onInit() {
     super.onInit();
     initialLoad();
-    _setupPageListener(); // Bật listener cho PageView
+    _setupPageListener();
   }
 
   void _setupPageListener() {
     pageController.addListener(() {
       final newIndex = pageController.page?.round();
       if (newIndex != null && newIndex != currentVideoIndex.value) {
-        _videoControllers[currentVideoIndex.value]?.pause(); // Dừng video cũ
+        _videoControllers[currentVideoIndex.value]?.pause();
         currentVideoIndex.value = newIndex;
-        _playCurrentVideo(); // Chạy video mới
-        _disposeUnusedControllers(); // Giải phóng tài nguyên
+        _playCurrentVideo();
+        _disposeUnusedControllers();
       }
     });
   }
@@ -56,19 +51,18 @@ class HomeController extends GetxController {
   Future<void> initialLoad() async {
     isLoading.value = true;
     try {
-      await Future.wait([
-        _fetchUserLikes(),
-        fetchVideos(refresh: true),
-      ]);
+      await Future.wait([_fetchUserLikes(), fetchVideos(refresh: true)]);
     } catch (e) {
       Get.snackbar('Lỗi', 'Không thể tải dữ liệu: ${e.toString()}');
     } finally {
       isLoading.value = false;
       if (videoList.isNotEmpty) {
-        getControllerForIndex(0); // Khởi tạo video đầu tiên
+        getControllerForIndex(0);
+        if (videoList.length > 1) getControllerForIndex(1);
       }
     }
   }
+
   // Hàm mới: Tải tất cả ID video đã thích một lần duy nhất
   Future<void> _fetchUserLikes() async {
     if (currentUserId.isEmpty) return;
@@ -174,14 +168,16 @@ class HomeController extends GetxController {
   void toggleFollow(String userIdToFollow) {
     followService.toggleFollow(userIdToFollow);
   }
-  VideoPlayerController? getControllerForIndex(int index) {
+  // CÁC HÀM QUẢN LÝ VIDEO PLAYER ĐƯỢC CẬP NHẬT
+  CachedVideoPlayerPlusController? getControllerForIndex(int index) {
     if (!_videoControllers.containsKey(index)) {
       if (index >= 0 && index < videoList.length) {
         final video = videoList[index];
-        final controller = VideoPlayerController.networkUrl(Uri.parse(video.videoUrl))
+        // THAY ĐỔI: TẠO ĐÚNG LOẠI CONTROLLER
+        final controller = CachedVideoPlayerPlusController.networkUrl(Uri.parse(video.videoUrl))
           ..initialize().then((_) {
             if (index == currentVideoIndex.value) _playCurrentVideo();
-            update([video.id]); // Chỉ cập nhật widget có ID này
+            update([video.id]);
           });
         _videoControllers[index] = controller;
       }
@@ -218,7 +214,7 @@ class HomeController extends GetxController {
   void onClose() {
     pageController.dispose();
     _videoControllers.forEach((key, controller) {
-      controller.dispose();
+      controller?.dispose();
     });
     _videoControllers.clear();
     super.onClose();
