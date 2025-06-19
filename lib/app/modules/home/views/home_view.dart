@@ -19,12 +19,14 @@ class HomeView extends GetView<HomeController> {
             return const Center(child: Text('Không có video nào để hiển thị.'));
           }
           return PageView.builder(
+            controller: controller.pageController,
             scrollDirection: Axis.vertical,
             physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
             itemCount: controller.videoList.length,
             itemBuilder: (context, index) {
               final video = controller.videoList[index];
-              return VideoPlayerItem(video: video );
+              return VideoPlayerItem( video: video,
+                index: index, );
               },
             onPageChanged: (index) {
               // Tải thêm video khi người dùng cuộn gần đến cuối

@@ -1,172 +1,161 @@
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:visibility_detector/visibility_detector.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:tiktok_clone/app/data/models/profile_model.dart';
+import 'package:tiktok_clone/app/data/models/video_model.dart';
+import 'package:tiktok_clone/app/modules/comment_sheet/comment_controller.dart';
+import 'package:tiktok_clone/app/modules/home/controllers/home_controller.dart';
+import 'package:tiktok_clone/services/follow_service.dart';
+import 'package:tiktok_clone/widgets/comment_sheet.dart';
 
-import '../app/data/models/video_model.dart';
-import '../app/data/models/profile_model.dart';
-import '../app/modules/comment_sheet/comment_controller.dart';
-import '../app/modules/home/controllers/home_controller.dart';
-import '../app/modules/video_user/views/video_user_view.dart';
-import '../services/follow_service.dart';
-import 'comment_sheet.dart';
-
-
-void showCommentSheet(BuildContext context, {required String videoId}) {
-  Get.lazyPut(() => CommentController(videoId: videoId)); // Khởi tạo CommentController
-
-  Get.bottomSheet(
-    const CommentSheet(), // HIỂN THỊ COMMENT SHEET Ở ĐÂY
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-  ).whenComplete(() {
-    Get.delete<CommentController>(); // Dọn dẹp controller khi sheet đóng
-  });
-}
-
-class VideoPlayerItem extends StatefulWidget {
+class VideoPlayerItem extends StatelessWidget { // Chuyển thành StatelessWidget
   final Video video;
-  const VideoPlayerItem({super.key, required this.video});
+  final int index;
 
-  @override
-  State<VideoPlayerItem> createState() => _VideoPlayerItemState();
-}
-
-class _VideoPlayerItemState extends State<VideoPlayerItem> {
-  final HomeController controller = Get.find<HomeController>();
-
-  late CachedVideoPlayerPlusController _videoController;
-
-  @override
-  void initState() {
-    super.initState();
-    _videoController = CachedVideoPlayerPlusController.networkUrl(Uri.parse(widget.video.videoUrl))
-      ..initialize().then((_) {
-        if (mounted) {
-          _videoController.setLooping(true);
-        }
-      });
-  }
-
-  @override
-  void dispose() {
-    _videoController.dispose();
-    super.dispose();
-  }
-
-  void _togglePlayPause() => _videoController.value.isPlaying ? _videoController.pause() : _videoController.play();
-
-  void _handleLike() => controller.toggleLike(widget.video.id);
-
-  void _handleCommentSheet() {
-    _videoController.pause();
-    showCommentSheet(context, videoId: widget.video.id);
-  }
+  const VideoPlayerItem({
+    required this.video,
+    required this.index,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return VisibilityDetector(
-      key: Key(widget.video.id),
-      onVisibilityChanged: (info) {
-        if (!mounted) return;
-        final isVisible = info.visibleFraction > 0.8;
-        if (isVisible && !_videoController.value.isPlaying) {
-          _videoController.play();
-        } else if (!isVisible && _videoController.value.isPlaying) {
-          _videoController.pause();
-        }
-      },
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(children: [
-          _buildVideoPlayer(),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.black.withOpacity(0.5), Colors.transparent],
-                begin: Alignment.bottomCenter, end: Alignment.center,
-              ),
-            ),
-          ),
-          Positioned.fill(child: GestureDetector(onTap: _togglePlayPause)),
-          Positioned(
-            left: 16, right: 80, bottom: 60,
-            child: _VideoInfoOverlay(video: widget.video),
-          ),
-          _ActionButtonsColumn(
-            video: widget.video, onLike: _handleLike, onComment: _handleCommentSheet,
-          ),
-          Positioned(bottom: 0, left: 0, right: 0, child: _buildVideoProgressBar()),
-        ]),
-      ),
-    );
-  }
+    // Lấy HomeController, là nơi quản lý tất cả state
+    final HomeController homeController = Get.find<HomeController>();
 
-  Widget _buildVideoPlayer() {
-    return ValueListenableBuilder(
-      valueListenable: _videoController,
-      builder: (context, CachedVideoPlayerPlusValue value, child) {
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            if (value.isInitialized)
+    // Dùng GetBuilder để lắng nghe cập nhật và rebuild widget này
+    // khi controller của nó được khởi tạo xong.
+    return GetBuilder<HomeController>(
+      id: video.id, // Rất quan trọng: Chỉ rebuild widget này khi có update với ID này
+      builder: (controller) {
+        // Lấy controller từ HomeController thay vì tự tạo
+        final videoPlayerController = controller.getControllerForIndex(index);
+
+        // Hiển thị vòng xoay trong khi controller đang được khởi tạo
+        if (videoPlayerController == null || !videoPlayerController.value.isInitialized) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // Hiển thị thumbnail trong lúc chờ video tải
+              if (video.thumbnailUrl.isNotEmpty)
+                Image.network(video.thumbnailUrl, fit: BoxFit.cover),
+              const Center(child: CircularProgressIndicator(color: Colors.white)),
+            ],
+          );
+        }
+
+        // Khi controller đã sẵn sàng, hiển thị video player
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(
+            alignment: Alignment.bottomLeft,
+            children: [
+              // VIDEO PLAYER
               Center(
                 child: AspectRatio(
-                  aspectRatio: value.aspectRatio,
-                  child: CachedVideoPlayerPlus(_videoController),
+                  aspectRatio: videoPlayerController.value.aspectRatio,
+                  child: CachedVideoPlayerPlus(videoPlayerController),
                 ),
-              )
-            else
-              const Center(child: CircularProgressIndicator(color: Colors.white)),
-
-            if (value.isInitialized)
-              AnimatedOpacity(
-                opacity: value.isPlaying ? 0.0 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                child: Icon(Iconsax.play, color: Colors.white.withOpacity(0.7), size: 80),
               ),
-          ],
+
+              // OVERLAYS
+              // Lớp gradient mờ
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: [Colors.black.withOpacity(0.5), Colors.transparent],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      stops: const [0.0, 0.4]
+                  ),
+                ),
+              ),
+
+              // Bắt sự kiện Tap để play/pause
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () {
+                    if (videoPlayerController.value.isPlaying) {
+                      videoPlayerController.pause();
+                    } else {
+                      videoPlayerController.play();
+                    }
+                  },
+                  child: Obx(() => AnimatedOpacity( // Icon Play/Pause
+                    opacity: controller.currentVideoIndex.value == index && !videoPlayerController.value.isPlaying ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: Center(
+                      child: Icon(Iconsax.play, color: Colors.white.withOpacity(0.7), size: 80),
+                    ),
+                  )),
+                ),
+              ),
+
+              // Thông tin video (Tên, caption)
+              Positioned(
+                left: 16, right: 80, bottom: 60,
+                child: _VideoInfoOverlay(video: video),
+              ),
+
+              // Cột các nút action (Like, comment, share...)
+              _ActionButtonsColumn(video: video, homeController: controller),
+
+              // Thanh tiến trình video
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: VideoProgressIndicator(
+                  videoPlayerController,
+                  allowScrubbing: true,
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                  colors: VideoProgressColors(
+                    playedColor: Colors.white,
+                    bufferedColor: Colors.white.withOpacity(0.4),
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
-
-  Widget _buildVideoProgressBar() => VideoProgressIndicator(
-    _videoController,
-    allowScrubbing: true,
-    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-    colors: VideoProgressColors(
-      playedColor: Colors.white,
-      bufferedColor: Colors.white.withOpacity(0.4),
-      backgroundColor: Colors.white.withOpacity(0.2),
-    ),
-  );
 }
+
+// CÁC WIDGET CON BÊN DƯỚI GẦN NHƯ GIỮ NGUYÊN
+// Chỉ có _ActionButtonsColumn cần truyền HomeController vào
 
 class _ActionButtonsColumn extends StatelessWidget {
   final Video video;
-  final VoidCallback onLike;
-  final VoidCallback onComment;
+  final HomeController homeController; // Nhận HomeController
 
-  const _ActionButtonsColumn({required this.video, required this.onLike, required this.onComment});
+  const _ActionButtonsColumn({required this.video, required this.homeController});
 
   @override
   Widget build(BuildContext context) {
-    final HomeController controller = Get.find<HomeController>();
     return Positioned(
       right: 10, bottom: 60,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Truyền hàm toggleFollow vào
-          _ProfileAvatarButton(author: video.author),
+          _ProfileAvatarButton(author: video.author, homeController: homeController),
           const SizedBox(height: 25),
-          _LikeButton(onTap: onLike, isLiked: video.isLikedByCurrentUser, likeCount: video.likeCount),
+          _LikeButton(
+              onTap: () => homeController.toggleLike(video.id),
+              isLiked: video.isLikedByCurrentUser,
+              likeCount: video.likeCount
+          ),
           const SizedBox(height: 25),
-          // Sử dụng video.commentCount.value.toString() cho số lượng
-          GestureDetector(onTap: onComment, child: Obx(() => _ActionButton(icon: Iconsax.message, text: video.commentCount.value.toString()))),
+          GestureDetector(
+              onTap: () {
+                homeController.getControllerForIndex(homeController.currentVideoIndex.value)?.pause();
+                showCommentSheet(context, videoId: video.id);
+              },
+              child: Obx(() => _ActionButton(icon: Iconsax.message, text: video.commentCount.value.toString()))
+          ),
           const SizedBox(height: 25),
           const _ActionButton(icon: Iconsax.send_1, text: 'Share'),
         ],
@@ -175,31 +164,33 @@ class _ActionButtonsColumn extends StatelessWidget {
   }
 }
 
-class _ProfileAvatarButton extends GetView<HomeController> {
+class _ProfileAvatarButton extends StatelessWidget {
   final Profile author;
+  final HomeController homeController;
 
-
-  const _ProfileAvatarButton({required this.author});
+  const _ProfileAvatarButton({required this.author, required this.homeController});
 
   @override
   Widget build(BuildContext context) {
     final FollowService followService = Get.find();
-    final bool isOwnVideo = author.id == controller.currentUserId;
+    final bool isOwnVideo = author.id == homeController.currentUserId;
     return Column(children: [
       Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
         GestureDetector(
-          onTap: () => Get.toNamed('/user', arguments: author.id),          child: Obx(() => CircleAvatar(
-          radius: 25, backgroundColor: Colors.white,
-          backgroundImage: author.avatarUrl.value.isNotEmpty ? CachedNetworkImageProvider(author.avatarUrl.value) : null,
-          child: author.avatarUrl.value.isEmpty ? const Icon(Iconsax.user, color: Colors.grey, size: 30) : null,
-        )),
+          onTap: () => Get.to(() => VideoUserView(userId: author.id)),
+          child: Obx(() => CircleAvatar(
+            radius: 25,
+            backgroundColor: Colors.white,
+            backgroundImage: author.avatarUrl.value.isNotEmpty ? CachedNetworkImageProvider(author.avatarUrl.value) : null,
+            child: author.avatarUrl.value.isEmpty ? const Icon(Iconsax.user, color: Colors.grey, size: 30) : null,
+          )),
         ),
         if (!isOwnVideo)
-          Obx(() => !followService.isFollowing(author.id) // <--- Lắng nghe nguồn chân lý
+          Obx(() => !followService.isFollowing(author.id)
               ? Positioned(
               bottom: -10,
               child: GestureDetector(
-                  onTap: () => controller.toggleFollow(author.id), // <--- Gọi hàm của controller
+                  onTap: () => homeController.toggleFollow(author.id),
                   child: Container(
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 1.5)),
@@ -209,7 +200,6 @@ class _ProfileAvatarButton extends GetView<HomeController> {
     ]);
   }
 }
-
 
 class _LikeButton extends StatelessWidget {
   final VoidCallback onTap;
