@@ -12,6 +12,7 @@ import 'package:tiktok_clone/services/chat_service.dart';
 class ChatDetailController extends GetxController {
   final ChatService _chatService = Get.find();
   final AuthService _authService = Get.find();
+  final supabase = Supabase.instance.client;
 
   // Trạng thái chung
   final isLoading = true.obs;
@@ -23,8 +24,7 @@ class ChatDetailController extends GetxController {
   final messages = <Message>[].obs;
   late final RealtimeChannel messageSubscription;
 
-  String get currentUserId => _authService.currentUser.value!.id;
-
+  String get currentUserId => _authService.currentUserId;
   @override
   void onReady() {
     super.onReady();

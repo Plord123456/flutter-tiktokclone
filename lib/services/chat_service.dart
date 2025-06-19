@@ -1,3 +1,4 @@
+// lib/services/chat_service.dart
 
 import 'dart:async';
 
@@ -83,23 +84,23 @@ class ChatService extends GetxService {
   /// Lắng nghe tin nhắn mới trong thời gian thực.
   RealtimeChannel subscribeToMessages(String conversationId, Function(Message) onNewMessage) {
     final channel = supabase.channel('chat_$conversationId');
-    channel.on<PostgresChanges>(
-      event: PostgresChangeEvent.insert,
-      schema: 'public',
-      table: 'messages',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'conversation_id',
-        value: conversationId,
+    channel
+        .on(
+      RealtimeListenTypes.postgresChanges,
+      ChannelFilter(
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: 'conversation_id=eq.$conversationId',
       ),
-      callback: (payload) {
-        // Lấy thông tin người gửi từ payload hoặc query lại nếu cần
-        // Ở đây chúng ta tạm thời tạo message mà không có full profile của sender
-        // Controller sẽ xử lý việc này sau.
-        final newMessage = Message.fromJson(payload.newRecord);
+          (payload, [ref]) {
+        // Dữ liệu của record mới nằm trong payload['new']
+        final newRecord = payload['new'] as Map<String, dynamic>;
+        final newMessage = Message.fromJson(newRecord);
         onNewMessage(newMessage);
       },
-    ).subscribe();
+    )
+        .subscribe();
 
     return channel;
   }
