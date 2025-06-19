@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:tiktok_clone/app/modules/confirm_upload/views/confirm_upload_view.dart';
 import 'package:tiktok_clone/app/modules/home/views/home_view.dart';
 import 'package:tiktok_clone/app/modules/profile/views/profile_view.dart';
+import '../../chat_list/views/chat_list_view.dart';
 import '../../video_user/views/video_user_view.dart'; // Giả sử bạn có màn hình search
 
 class LayoutController extends GetxController {
@@ -16,6 +17,7 @@ class LayoutController extends GetxController {
   final List<Widget> screens = [
     HomeView(),
     ProfileView(),
+    ChatListView(),
   ];
 
   void changeTabIndex(int index) {

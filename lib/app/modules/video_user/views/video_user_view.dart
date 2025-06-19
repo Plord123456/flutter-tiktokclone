@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../../services/chat_service.dart';
+import '../../../data/models/conversation_model.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../data/models/video_model.dart';
 import '../../../routes/app_pages.dart';
@@ -125,17 +127,55 @@ class VideoUserView extends GetView<VideoUserController> {
     return Obx(() => SizedBox(
       width: double.infinity,
       child: controller.isMyProfile
-          ? OutlinedButton(onPressed: () {
-        Get.toNamed(Routes.PROFILE);
-      },
-        child: const Text('Edit Profile'),)
-          : ElevatedButton(
-        onPressed: controller.toggleFollow,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: controller.isFollowing? Colors.grey.shade300 : Colors.red,
-          foregroundColor: controller.isFollowing ? Colors.black : Colors.white,
-        ),
-        child: Text(controller.isFollowing ? 'Unfollow' : 'Follow'),
+      // Nếu là profile của tôi, chỉ hiển thị nút "Edit Profile"
+          ? OutlinedButton(
+        onPressed: () {
+          // Logic để mở màn hình edit profile
+          Get.to(() => EditProfileView(), binding: ProfileBinding());
+        },
+        child: const Text('Edit Profile'),
+      )
+      // Nếu là profile của người khác, hiển thị cả Follow và Nhắn tin
+          : Row(
+        children: [
+          // Nút Follow/Unfollow chiếm phần lớn không gian
+          Expanded(
+            child: ElevatedButton(
+              onPressed: controller.toggleFollow,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: controller.isFollowing
+                    ? Colors.grey.shade300
+                    : Colors.red,
+                foregroundColor:
+                controller.isFollowing ? Colors.black : Colors.white,
+              ),
+              child: Text(controller.isFollowing ? 'Unfollow' : 'Follow'),
+            ),
+          ),
+          const SizedBox(width: 8), // Khoảng cách giữa 2 nút
+          // Nút Nhắn tin
+          IconButton(
+            icon: const Icon(Iconsax.message),
+            onPressed: () async {
+              final ChatService chatService = Get.find();
+
+              final conversationId =
+              await chatService.findOrCreateConversation(
+                controller.profileUserId.value,
+              );
+
+              if (conversationId != null) {
+                final conversationForNav = Conversation(
+                  id: conversationId,
+                  otherParticipant: controller.userProfile.value!,
+                  lastMessageContent: null,
+                  lastMessageCreatedAt: null,
+                );
+                Get.toNamed(Routes.CHAT_DETAIL, arguments: conversationForNav);
+              }
+            },
+          ),
+        ],
       ),
     ));
   }

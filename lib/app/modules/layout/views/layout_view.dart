@@ -57,7 +57,12 @@ class LayoutView extends GetView<LayoutController> {
                 label: 'Profile',
                 index: 1,
               ),
-
+              _buildNavItem(
+                context: context,
+                icon: Iconsax.activity,
+                label: 'message',
+                index: 2,
+              ),
 
             ],
           ),

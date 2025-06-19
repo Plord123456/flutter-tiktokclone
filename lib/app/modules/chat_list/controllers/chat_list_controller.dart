@@ -1,23 +1,35 @@
+// lib/app/modules/chat/chat_list/controllers/chat_list_controller.dart
+
 import 'package:get/get.dart';
+import 'package:tiktok_clone/app/data/models/conversation_model.dart';
+import 'package:tiktok_clone/app/routes/app_pages.dart';
+import 'package:tiktok_clone/services/chat_service.dart';
 
 class ChatListController extends GetxController {
-  //TODO: Implement ChatListController
+  final ChatService _chatService = Get.find();
 
-  final count = 0.obs;
-  @override
-  void onInit() {
-    super.onInit();
-  }
+  final isLoading = true.obs;
+  final conversations = <Conversation>[].obs;
 
   @override
   void onReady() {
     super.onReady();
+    fetchConversations();
   }
 
-  @override
-  void onClose() {
-    super.onClose();
+  Future<void> fetchConversations() async {
+    try {
+      isLoading(true);
+      final result = await _chatService.getConversations();
+      conversations.assignAll(result);
+    } catch (e) {
+      Get.snackbar('Lỗi', 'Không thể tải danh sách trò chuyện');
+    } finally {
+      isLoading(false);
+    }
   }
 
-  void increment() => count.value++;
+  void navigateToChatDetail(Conversation conversation) {
+    Get.toNamed(Routes.CHAT_DETAIL, arguments: conversation);
+  }
 }
