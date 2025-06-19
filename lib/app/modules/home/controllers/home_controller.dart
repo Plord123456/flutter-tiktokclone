@@ -1,55 +1,54 @@
-import 'dart:async';
-import 'package:flutter/cupertino.dart';
+// lib/app/modules/home/controllers/home_controller.dart
+
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tiktok_clone/app/data/models/profile_model.dart';
 import 'package:tiktok_clone/app/data/models/video_model.dart';
 import 'package:tiktok_clone/services/auth_service.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 import 'package:video_player/video_player.dart';
 
 class HomeController extends GetxController {
+  // Services
   final supabase = Supabase.instance.client;
   final followService = Get.find<FollowService>();
   final authService = Get.find<AuthService>();
 
-  // State cho việc tải video
+  // State cho việc tải dữ liệu
   final videoList = <Video>[].obs;
   final isLoading = true.obs;
   final isLoadingMore = false.obs;
   final hasMoreVideos = true.obs;
   final _videoPageSize = 5;
 
-  // State cho chức năng Like
+  // State cho chức năng Like (Tối ưu)
   final RxSet<String> likedVideoIds = <String>{}.obs;
   final _likingInProgress = <String>{}.obs;
   String get currentUserId => authService.currentUserId;
 
-
+  // ==========================================================
+  // STATE ĐỂ QUẢN LÝ VIDEO PLAYER
+  // ==========================================================
   final PageController pageController = PageController();
   final RxInt currentVideoIndex = 0.obs;
   final Map<int, VideoPlayerController> _videoControllers = {};
+
 
   @override
   void onInit() {
     super.onInit();
     initialLoad();
-    _setupPageListener(); // Thêm listener cho PageView
-
+    _setupPageListener(); // Bật listener cho PageView
   }
+
   void _setupPageListener() {
     pageController.addListener(() {
       final newIndex = pageController.page?.round();
       if (newIndex != null && newIndex != currentVideoIndex.value) {
-        // Dừng video cũ
-        _videoControllers[currentVideoIndex.value]?.pause();
-
-        // Cập nhật index và chạy video mới
+        _videoControllers[currentVideoIndex.value]?.pause(); // Dừng video cũ
         currentVideoIndex.value = newIndex;
-        _playCurrentVideo();
-
-        // Giải phóng các controller không cần thiết để tiết kiệm bộ nhớ
-        _disposeUnusedControllers();
+        _playCurrentVideo(); // Chạy video mới
+        _disposeUnusedControllers(); // Giải phóng tài nguyên
       }
     });
   }
@@ -65,13 +64,11 @@ class HomeController extends GetxController {
       Get.snackbar('Lỗi', 'Không thể tải dữ liệu: ${e.toString()}');
     } finally {
       isLoading.value = false;
-      // Khởi tạo và chơi video đầu tiên sau khi tải xong
       if (videoList.isNotEmpty) {
-        getControllerForIndex(0);
+        getControllerForIndex(0); // Khởi tạo video đầu tiên
       }
     }
   }
-
   // Hàm mới: Tải tất cả ID video đã thích một lần duy nhất
   Future<void> _fetchUserLikes() async {
     if (currentUserId.isEmpty) return;
@@ -179,14 +176,12 @@ class HomeController extends GetxController {
   }
   VideoPlayerController? getControllerForIndex(int index) {
     if (!_videoControllers.containsKey(index)) {
-      if (index < videoList.length) {
+      if (index >= 0 && index < videoList.length) {
         final video = videoList[index];
         final controller = VideoPlayerController.networkUrl(Uri.parse(video.videoUrl))
           ..initialize().then((_) {
-            if (index == currentVideoIndex.value) {
-              _playCurrentVideo();
-            }
-            update();
+            if (index == currentVideoIndex.value) _playCurrentVideo();
+            update([video.id]); // Chỉ cập nhật widget có ID này
           });
         _videoControllers[index] = controller;
       }
@@ -203,22 +198,22 @@ class HomeController extends GetxController {
   }
 
   void _disposeUnusedControllers() {
-    // Giữ lại controller cho video hiện tại, video trước và video sau
-    final aLiveIndexes = [
+    final activeIndexes = [
       currentVideoIndex.value - 1,
       currentVideoIndex.value,
       currentVideoIndex.value + 1,
     ];
-
     final keysToRemove = <int>[];
     _videoControllers.forEach((key, controller) {
-      if (!aLiveIndexes.contains(key)) {
+      if (!activeIndexes.contains(key)) {
         controller.dispose();
         keysToRemove.add(key);
       }
     });
     keysToRemove.forEach(_videoControllers.remove);
+    print('Disposed controllers. Remaining: ${_videoControllers.length}');
   }
+
   @override
   void onClose() {
     pageController.dispose();
