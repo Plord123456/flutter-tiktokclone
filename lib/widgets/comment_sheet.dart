@@ -7,15 +7,15 @@ import 'package:iconsax/iconsax.dart';
 import '../app/data/models/comments_model.dart';
 import '../app/modules/comment_sheet/comment_controller.dart';
 
-// Hàm để hiển thị bottom sheet
-void showCommentSheet(BuildContext context, {required String videoId}) {
+Future<void> showCommentSheet(BuildContext context, {required String videoId}) {
   Get.lazyPut(() => CommentController(videoId: videoId));
 
-  Get.bottomSheet(
+  return Get.bottomSheet(
     const CommentSheet(),
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
   ).whenComplete(() {
+    // Dọn dẹp controller sau khi sheet đóng
     Get.delete<CommentController>();
   });
 }

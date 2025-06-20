@@ -12,7 +12,6 @@ import 'package:tiktok_clone/widgets/comment_sheet.dart';
 
 import '../app/modules/UserFeed/controllers/user_feed_controller.dart';
 
-// ✅ BƯỚC 1: SỬA LẠI HOÀN TOÀN WIDGET NÀY
 
 class VideoPlayerItem extends StatelessWidget {
   final Video video;
@@ -74,9 +73,6 @@ class VideoPlayerItem extends StatelessWidget {
                   videoPlayerController.play();
                 }
               },
-              // AnimatedOpacity cần biết index của video nào đang chạy
-              // Nhưng logic này nên nằm trong controller, ở đây ta đơn giản hóa
-              // bằng cách chỉ dựa vào trạng thái isPlaying của chính video này.
               child: AnimatedOpacity(
                 opacity: !videoPlayerController.value.isPlaying ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 300),
@@ -117,7 +113,8 @@ class VideoPlayerItem extends StatelessWidget {
     );
   }
 }
-// Hãy tìm class _ActionButtonsColumn và thay thế nó bằng toàn bộ class này
+// Dán đoạn code này vào file video_player_item.dart để thay thế 2 class cũ
+// BẮT ĐẦU PHẦN THAY THẾ
 
 class _ActionButtonsColumn extends StatelessWidget {
   final Video video;
@@ -125,6 +122,7 @@ class _ActionButtonsColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Tìm controller phù hợp với màn hình hiện tại (HomeController hoặc UserFeedController)
     final dynamic currentController = Get.isRegistered<UserFeedController>()
         ? Get.find<UserFeedController>()
         : Get.find<HomeController>();
@@ -135,32 +133,38 @@ class _ActionButtonsColumn extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // NÚT AVATAR: Điều hướng đến trang profile
           _ProfileAvatarButton(author: video.author),
           const SizedBox(height: 25),
+
+          // NÚT LIKE: Thay đổi trạng thái like
           _LikeButton(
               onTap: () => currentController.toggleLike(video.id),
               isLiked: video.isLikedByCurrentUser,
               likeCount: video.likeCount),
           const SizedBox(height: 25),
 
-          // NÚT COMMENT VỚI LOGIC ĐÚNG
           GestureDetector(
               onTap: () {
                 currentController.pauseCurrentVideo();
-                showCommentSheet(context, videoId: video.id);
-                currentController.resumeCurrentVideo();
+                showCommentSheet(context, videoId: video.id)
+                    .then((_) {
+                  currentController.resumeCurrentVideo();
+                });
               },
               child: Obx(() => _ActionButton(
                   icon: Iconsax.message,
                   text: video.commentCount.value.toString()))),
           const SizedBox(height: 25),
+
+          // NÚT SHARE
           const _ActionButton(icon: Iconsax.send_1, text: 'Share'),
         ],
       ),
     );
   }
 }
-// Sửa lại _ProfileAvatarButton
+
 class _ProfileAvatarButton extends StatelessWidget {
   final Profile author;
   const _ProfileAvatarButton({required this.author});
@@ -168,7 +172,6 @@ class _ProfileAvatarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FollowService followService = Get.find();
-    // Tìm controller phù hợp
     final dynamic currentController = Get.isRegistered<UserFeedController>()
         ? Get.find<UserFeedController>()
         : Get.find<HomeController>();
@@ -177,6 +180,7 @@ class _ProfileAvatarButton extends StatelessWidget {
     return Column(children: [
       Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
         GestureDetector(
+          // Toàn bộ logic được bọc trong () { ... }
           onTap: () {
             currentController.onPause();
             Get.toNamed(
@@ -217,6 +221,7 @@ class _ProfileAvatarButton extends StatelessWidget {
   }
 }
 
+// KẾT THÚC PHẦN THAY THẾ
 class _LikeButton extends StatelessWidget {
   final VoidCallback onTap;
   final RxBool isLiked;

@@ -31,14 +31,16 @@ class VideoUserController extends GetxController {
   bool get isMyProfile => currentUserId == profileUserId.value;
 
   @override
+  // Thay thế toàn bộ hàm onInit() trong VideoUserController
+
+  @override
   void onInit() {
     super.onInit();
+    final String? idFromParams = Get.parameters['profileId'];
 
-    // Bạn đã làm rất tốt việc kiểm tra arguments ở đây!
-    if (Get.arguments != null && Get.arguments is String) {
-      profileUserId.value = Get.arguments as String;
-      print("🚀 onInit: VideoUserController được khởi tạo với ID: ${profileUserId.value}");
-      // Các logic sau đó của bạn đã đúng, giữ nguyên
+    if (idFromParams != null && idFromParams.isNotEmpty) {
+      profileUserId.value = idFromParams;
+
       scrollController = ScrollController();
       scrollController.addListener(() {
         if (scrollController.position.pixels >=
@@ -48,17 +50,14 @@ class VideoUserController extends GetxController {
       });
       fetchData();
     } else {
-      // Phần xử lý lỗi này của bạn đã rất tốt
       print("LỖI: VideoUserController được gọi mà không có profileId hợp lệ.");
       isLoading.value = false;
-
       Get.snackbar(
         'Lỗi nghiêm trọng',
         'Không thể xác định người dùng. Vui lòng thử lại.',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
-
       Future.delayed(const Duration(seconds: 2), () => Get.back());
     }
   }
