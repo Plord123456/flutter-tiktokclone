@@ -1,9 +1,10 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:tiktok_clone/app/routes/app_pages.dart';
+import 'package:tiktok_clone/services/media_service.dart';
 import '../../../data/models/tag_model.dart';
 import '../../home/controllers/home_controller.dart';
 
@@ -11,106 +12,108 @@ class ConfirmUploadController extends GetxController {
   final File videoFile;
   ConfirmUploadController({required this.videoFile});
 
+  // Dependencies
+  final _supabase = Supabase.instance.client;
+  final MediaService _mediaService = Get.find<MediaService>();
+  final HomeController _homeController = Get.find<HomeController>();
+
+  // UI State
+  final isUploading = false.obs;
+  final uploadStatus = ''.obs; // Biến trạng thái để hiển thị cho người dùng
   final captionController = TextEditingController();
   final tagsController = TextEditingController();
-  final tags = <Tag>[].obs; // Sử dụng danh sách Tag
-  final HomeController _homeController = Get.find();
-  final supabase = Supabase.instance.client;
-  final isUploading = false.obs;
+  final tags = <Tag>[].obs;
 
-  void addTagFromTextField() {
-    final text = tagsController.text.trim().replaceAll('#', '');
-    if (text.isNotEmpty && !tags.any((tag) => tag.name == text)) {
-      tags.add(Tag(id: tags.length + 1, name: text, initialIsFavorited: false));
-    }
-    tagsController.clear();
-  }
-
-  void removeTag(Tag tag) {
-    tags.remove(tag);
-  }
-
+  /// Hàm chính xử lý việc đăng bài
   Future<void> uploadVideoPost() async {
+    // Ngăn chặn việc bấm nút nhiều lần
     if (isUploading.value) return;
 
+    // Kiểm tra dữ liệu đầu vào
     if (captionController.text.trim().isEmpty) {
-      Get.snackbar('Lỗi', 'Vui lòng nhập tiêu đề cho video.');
+      Get.snackbar('Thông báo', 'Vui lòng nhập tiêu đề cho video.');
       return;
     }
-    final user = supabase.auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) {
       Get.snackbar('Lỗi', 'Bạn cần đăng nhập để đăng bài.');
       return;
     }
 
     isUploading.value = true;
+    uploadStatus.value = 'Bắt đầu...';
 
     try {
-      final thumbnailFile = await _generateThumbnail(videoFile);
-      if (thumbnailFile == null) {
-        throw Exception('Không thể tạo thumbnail cho video.');
+      // Bước 1: Gọi MediaService để xử lý và upload file
+      // Service sẽ lo việc nén, tạo thumbnail, upload và báo cáo tiến trình
+      final uploadResult = await _mediaService.uploadMedia(
+        videoFile,
+        onProgress: (status) {
+          uploadStatus.value = status;
+        },
+      );
+
+      if (uploadResult == null) {
+        throw Exception('Quá trình xử lý media thất bại.');
       }
 
-      final videoUrl = await _uploadFile(videoFile, 'videos', 'video/mp4');
-      final thumbnailUrl = await _uploadFile(thumbnailFile, 'thumbnails', 'image/png');
+      uploadStatus.value = 'Đang lưu thông tin...';
 
-      final newVideoData = await supabase.from('videos').insert({
+      // Bước 2: Lưu metadata vào database
+      // Chèn dữ liệu vào bảng 'videos'
+      final newVideoData = await _supabase.from('videos').insert({
         'user_id': user.id,
-        'title': captionController.text.trim(),
-        'video_url': videoUrl,
-        'thumbnail_url': thumbnailUrl,
+        'caption': captionController.text.trim(), // Đổi từ title thành caption cho nhất quán
+        'video_url': uploadResult.videoUrl,
+        'thumbnail_url': uploadResult.thumbnailUrl,
       }).select().single();
 
       final newVideoId = newVideoData['id'];
 
+      // Bước 3: Xử lý tags
       if (tags.isNotEmpty) {
-        final tagsToUpsert = tags.map((tag) => {'name': tag.name}).toList();
-        final upsertedTags = await supabase
+        // Upsert tags để đảm bảo không bị trùng lặp
+        final tagsToUpsert =
+        tags.map((tag) => {'name': tag.name.toLowerCase()}).toList();
+        final upsertedTags = await _supabase
             .from('tags')
             .upsert(tagsToUpsert, onConflict: 'name')
             .select();
 
-        final videoTagsToInsert = upsertedTags.map((tagData) => {
+        // Chèn vào bảng trung gian 'video_tags'
+        final videoTagsToInsert = upsertedTags
+            .map((tagData) => {
           'video_id': newVideoId,
           'tag_id': tagData['id'],
-        }).toList();
-
-        await supabase.from('video_tags').insert(videoTagsToInsert);
+        })
+            .toList();
+        await _supabase.from('video_tags').insert(videoTagsToInsert);
       }
 
-      Get.back();
-      _homeController.fetchVideos(refresh: true);
+      // Bước 4: Hoàn tất và dọn dẹp
+      Get.offAllNamed(Routes.LAYOUT); // Quay về trang chính
+      _homeController.fetchVideos(refresh: true); // Làm mới danh sách video
       Get.snackbar('Thành công', 'Đã đăng video của bạn!');
+
     } catch (e) {
-      Get.snackbar('Lỗi', 'Đã có lỗi xảy ra: ${e.toString()}');
+      print('Lỗi nghiêm trọng khi đăng bài: $e');
+      Get.snackbar('Đăng bài thất bại', 'Đã có lỗi xảy ra: ${e.toString()}');
     } finally {
       isUploading.value = false;
     }
   }
 
-  Future<File?> _generateThumbnail(File videoFile) async {
-    final fileName = await VideoThumbnail.thumbnailFile(
-      video: videoFile.path,
-      thumbnailPath: (await getTemporaryDirectory()).path,
-      imageFormat: ImageFormat.PNG,
-      maxHeight: 640,
-      quality: 75,
-    );
-    return fileName != null ? File(fileName) : null;
+  void addTagFromTextField() {
+    final text = tagsController.text.trim().replaceAll('#', '');
+    if (text.isNotEmpty && !tags.any((tag) => tag.name == text)) {
+      // Tạo một Tag object mới
+      tags.add(Tag(id: 0, name: text, initialIsFavorited: false)); // id không quan trọng ở client
+    }
+    tagsController.clear();
   }
 
-  Future<String> _uploadFile(File file, String bucket, String contentType) async {
-    final fileExt = file.path.split('.').last;
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-    final filePath = '${supabase.auth.currentUser!.id}/$fileName';
-
-    await supabase.storage.from(bucket).upload(
-      filePath,
-      file,
-      fileOptions: FileOptions(contentType: contentType),
-    );
-
-    return supabase.storage.from(bucket).getPublicUrl(filePath);
+  void removeTag(Tag tag) {
+    tags.remove(tag);
   }
 
   @override

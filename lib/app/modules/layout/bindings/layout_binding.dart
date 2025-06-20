@@ -21,6 +21,5 @@ class LayoutBinding extends Bindings {
     Get.lazyPut<LoginController>(() => LoginController());
     Get.lazyPut<ProfileController>(() => ProfileController());
     Get.lazyPut<ChatListController>(() => ChatListController());
-
   }
 }

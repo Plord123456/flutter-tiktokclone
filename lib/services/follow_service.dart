@@ -27,8 +27,6 @@ class FollowService extends GetxService {
     _fetchInitialFollows();
     _listenToFollowChanges();
   }
-
-  /// Lấy danh sách những người mình đang follow từ database khi khởi động.
   Future<void> _fetchInitialFollows() async {
     if (currentUserId == null) return;
     try {

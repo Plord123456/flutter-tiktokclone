@@ -23,18 +23,16 @@ class HomeView extends GetView<HomeController> {
             scrollDirection: Axis.vertical,
             physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
             itemCount: controller.videoList.length,
-            onPageChanged: controller.onPageChanged,
-
-            // trong hàm itemBuilder của PageView.builder
-
-            // trong hàm itemBuilder của PageView.builder
-
+            onPageChanged: (index) {
+              controller.onPageChanged(index);
+              final isEnd = index >= controller.videoList.length - 2;
+              if (isEnd && controller.hasMoreVideos.value && !controller.isLoadingMore.value) {
+                controller.loadMoreVideos();
+              }
+            },
             itemBuilder: (context, index) {
               final video = controller.videoList[index];
-              // ✅ Lấy controller cho video này
               final videoPlayerController = controller.getControllerForIndex(index);
-
-              // ✅ Nếu controller tồn tại, truyền nó vào VideoPlayerItem
               if (videoPlayerController != null) {
                 return VideoPlayerItem(
                   video: video,
