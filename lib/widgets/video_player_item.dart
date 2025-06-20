@@ -136,8 +136,15 @@ class _ActionButtonsColumn extends StatelessWidget {
           const SizedBox(height: 25),
           GestureDetector(
               onTap: () {
+                homeController.onPause();
                 homeController.getControllerForIndex(homeController.currentVideoIndex.value)?.pause();
                 showCommentSheet(context, videoId: video.id);
+                Get.toNamed(
+                    Routes.USER_FEED,
+                    arguments: {'initialVideos': [video], 'initialIndex': 0} // Ví dụ
+                )?.then((_) {
+                  homeController.onResume();
+                });
               },
               child: Obx(() => _ActionButton(
                   icon: Iconsax.message,

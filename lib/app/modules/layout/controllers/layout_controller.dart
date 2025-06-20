@@ -22,17 +22,17 @@ class LayoutController extends GetxController {
   ];
 // Trong LayoutController
 
+
   void changeTabIndex(int index) {
     final homeController = Get.find<HomeController>();
 
     if (currentIndex.value == 0 && index != 0) {
-      homeController.pauseCurrentVideo();
+      homeController.onPause();
     }
-
     currentIndex.value = index;
 
     if (index == 0) {
-      homeController.resumeCurrentVideo();
+      homeController.onResume();
     }
   }
 

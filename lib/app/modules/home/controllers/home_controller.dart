@@ -213,10 +213,22 @@ class HomeController extends GetxController {
       isLoadingMore.value = false;
     }
   }
-// Thêm 2 hàm này vào trong class HomeController
 
-  /// Tạm dừng video đang hiển thị trên màn hình.
-  void pauseCurrentVideo() {
+
+  void onPause() {
+    print("HomeController: Dọn dẹp tất cả video players.");
+    _videoControllers.forEach((key, controller) {
+      controller.dispose();
+    });
+    _videoControllers.clear();
+  }
+
+  void onResume() {
+    print("HomeController: Tái tạo video players.");
+    // Khởi tạo lại video ở trang hiện tại và trang kế tiếp để lướt mượt hơn
+    _initializeControllerForIndex(currentVideoIndex.value);
+    _initializeControllerForIndex(currentVideoIndex.value + 1);
+  }  void pauseCurrentVideo() {
     final currentController = _videoControllers[currentVideoIndex.value];
     if (currentController != null && currentController.value.isPlaying) {
       currentController.pause();
