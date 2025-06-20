@@ -225,16 +225,9 @@ class HomeController extends GetxController {
 
   void onResume() {
     print("HomeController: Tái tạo video players.");
-    // Khởi tạo lại video ở trang hiện tại và trang kế tiếp để lướt mượt hơn
     _initializeControllerForIndex(currentVideoIndex.value);
     _initializeControllerForIndex(currentVideoIndex.value + 1);
-  }  void pauseCurrentVideo() {
-    final currentController = _videoControllers[currentVideoIndex.value];
-    if (currentController != null && currentController.value.isPlaying) {
-      currentController.pause();
-    }
   }
-
   void resumeCurrentVideo() {
     final currentController = _videoControllers[currentVideoIndex.value];
     if (currentController != null &&

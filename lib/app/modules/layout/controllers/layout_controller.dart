@@ -25,14 +25,12 @@ class LayoutController extends GetxController {
 
   void changeTabIndex(int index) {
     final homeController = Get.find<HomeController>();
-
     if (currentIndex.value == 0 && index != 0) {
-      homeController.onPause();
+      homeController.onPause(); // <-- Dọn dẹp
     }
     currentIndex.value = index;
-
     if (index == 0) {
-      homeController.onResume();
+      homeController.onResume(); // <-- Tái tạo
     }
   }
 
