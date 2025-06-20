@@ -8,6 +8,7 @@ import 'package:tiktok_clone/app/modules/confirm_upload/views/confirm_upload_vie
 import 'package:tiktok_clone/app/modules/home/views/home_view.dart';
 import 'package:tiktok_clone/app/modules/profile/views/profile_view.dart';
 import '../../chat_list/views/chat_list_view.dart';
+import '../../home/controllers/home_controller.dart';
 import '../../video_user/views/video_user_view.dart'; // Giả sử bạn có màn hình search
 
 class LayoutController extends GetxController {
@@ -19,9 +20,20 @@ class LayoutController extends GetxController {
     ProfileView(),
     ChatListView(),
   ];
+// Trong LayoutController
 
   void changeTabIndex(int index) {
+    final homeController = Get.find<HomeController>();
+
+    if (currentIndex.value == 0 && index != 0) {
+      homeController.pauseCurrentVideo();
+    }
+
     currentIndex.value = index;
+
+    if (index == 0) {
+      homeController.resumeCurrentVideo();
+    }
   }
 
   Future<void> pickAndNavigateToConfirm() async {

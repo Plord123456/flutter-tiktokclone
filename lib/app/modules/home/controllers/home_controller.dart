@@ -213,7 +213,24 @@ class HomeController extends GetxController {
       isLoadingMore.value = false;
     }
   }
+// Thêm 2 hàm này vào trong class HomeController
 
+  /// Tạm dừng video đang hiển thị trên màn hình.
+  void pauseCurrentVideo() {
+    final currentController = _videoControllers[currentVideoIndex.value];
+    if (currentController != null && currentController.value.isPlaying) {
+      currentController.pause();
+    }
+  }
+
+  void resumeCurrentVideo() {
+    final currentController = _videoControllers[currentVideoIndex.value];
+    if (currentController != null &&
+        currentController.value.isInitialized &&
+        !currentController.value.isPlaying) {
+      currentController.play();
+    }
+  }
   void toggleLike(String videoId) async {
     if (_likingInProgress.contains(videoId)) return;
     final video = videoList.firstWhereOrNull((v) => v.id == videoId);
