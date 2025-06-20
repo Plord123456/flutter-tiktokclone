@@ -25,10 +25,16 @@ class HomeView extends GetView<HomeController> {
             itemCount: controller.videoList.length,
             onPageChanged: controller.onPageChanged,
 
+            // trong hàm itemBuilder của PageView.builder
+
+            // trong hàm itemBuilder của PageView.builder
+
             itemBuilder: (context, index) {
               final video = controller.videoList[index];
+              // ✅ Lấy controller cho video này
               final videoPlayerController = controller.getControllerForIndex(index);
 
+              // ✅ Nếu controller tồn tại, truyền nó vào VideoPlayerItem
               if (videoPlayerController != null) {
                 return VideoPlayerItem(
                   video: video,
@@ -36,6 +42,7 @@ class HomeView extends GetView<HomeController> {
                   index: index,
                 );
               }
+              // Fallback, có thể hiện một placeholder
               return Container(color: Colors.black);
             },
           );

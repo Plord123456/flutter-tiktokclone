@@ -1,3 +1,5 @@
+// lib/widgets/video_player_item.dart
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/material.dart';
@@ -5,18 +7,16 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:tiktok_clone/app/data/models/profile_model.dart';
 import 'package:tiktok_clone/app/data/models/video_model.dart';
+import 'package:tiktok_clone/app/modules/UserFeed/controllers/user_feed_controller.dart';
 import 'package:tiktok_clone/app/modules/home/controllers/home_controller.dart';
 import 'package:tiktok_clone/app/routes/app_pages.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 import 'package:tiktok_clone/widgets/comment_sheet.dart';
 
-import '../app/modules/UserFeed/controllers/user_feed_controller.dart';
-
-
 class VideoPlayerItem extends StatelessWidget {
   final Video video;
   final CachedVideoPlayerPlusController videoPlayerController;
-  final int index; // Vẫn giữ index để biết video nào đang active
+  final int index;
 
   const VideoPlayerItem({
     required this.video,
@@ -27,8 +27,6 @@ class VideoPlayerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Không còn Get.find<HomeController>() ở đây nữa
-
     // Nếu controller chưa sẵn sàng, hiện thumbnail và loading
     if (!videoPlayerController.value.isInitialized) {
       return Stack(
@@ -53,7 +51,6 @@ class VideoPlayerItem extends StatelessWidget {
               child: CachedVideoPlayerPlus(videoPlayerController),
             ),
           ),
-          // Gradient Overlay
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -63,7 +60,6 @@ class VideoPlayerItem extends StatelessWidget {
                   stops: const [0.0, 0.4]),
             ),
           ),
-          // Nút Play/Pause ở giữa
           Positioned.fill(
             child: GestureDetector(
               onTap: () {
@@ -83,16 +79,13 @@ class VideoPlayerItem extends StatelessWidget {
               ),
             ),
           ),
-          // Thông tin video
           Positioned(
             left: 16,
             right: 80,
             bottom: 60,
             child: _VideoInfoOverlay(video: video),
           ),
-          // Các nút action bên phải
           _ActionButtonsColumn(video: video),
-          // Thanh tiến trình video
           Positioned(
             bottom: 0,
             left: 0,
@@ -113,8 +106,6 @@ class VideoPlayerItem extends StatelessWidget {
     );
   }
 }
-// Dán đoạn code này vào file video_player_item.dart để thay thế 2 class cũ
-// BẮT ĐẦU PHẦN THAY THẾ
 
 class _ActionButtonsColumn extends StatelessWidget {
   final Video video;
@@ -122,7 +113,7 @@ class _ActionButtonsColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Tìm controller phù hợp với màn hình hiện tại (HomeController hoặc UserFeedController)
+    // Tìm controller phù hợp với ngữ cảnh hiện tại
     final dynamic currentController = Get.isRegistered<UserFeedController>()
         ? Get.find<UserFeedController>()
         : Get.find<HomeController>();
@@ -133,22 +124,17 @@ class _ActionButtonsColumn extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // NÚT AVATAR: Điều hướng đến trang profile
           _ProfileAvatarButton(author: video.author),
           const SizedBox(height: 25),
-
-          // NÚT LIKE: Thay đổi trạng thái like
           _LikeButton(
               onTap: () => currentController.toggleLike(video.id),
               isLiked: video.isLikedByCurrentUser,
               likeCount: video.likeCount),
           const SizedBox(height: 25),
-
           GestureDetector(
               onTap: () {
                 currentController.pauseCurrentVideo();
-                showCommentSheet(context, videoId: video.id)
-                    .then((_) {
+                showCommentSheet(context, videoId: video.id).then((_) {
                   currentController.resumeCurrentVideo();
                 });
               },
@@ -156,8 +142,6 @@ class _ActionButtonsColumn extends StatelessWidget {
                   icon: Iconsax.message,
                   text: video.commentCount.value.toString()))),
           const SizedBox(height: 25),
-
-          // NÚT SHARE
           const _ActionButton(icon: Iconsax.send_1, text: 'Share'),
         ],
       ),
@@ -180,7 +164,6 @@ class _ProfileAvatarButton extends StatelessWidget {
     return Column(children: [
       Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
         GestureDetector(
-          // Toàn bộ logic được bọc trong () { ... }
           onTap: () {
             currentController.onPause();
             Get.toNamed(
@@ -221,12 +204,13 @@ class _ProfileAvatarButton extends StatelessWidget {
   }
 }
 
-// KẾT THÚC PHẦN THAY THẾ
+
 class _LikeButton extends StatelessWidget {
   final VoidCallback onTap;
   final RxBool isLiked;
   final RxInt likeCount;
   const _LikeButton({required this.onTap, required this.isLiked, required this.likeCount});
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -243,6 +227,7 @@ class _LikeButton extends StatelessWidget {
 class _VideoInfoOverlay extends StatelessWidget {
   final Video video;
   const _VideoInfoOverlay({required this.video});
+
   @override
   Widget build(BuildContext context) {
     return Obx(() => Column(
@@ -274,6 +259,7 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   const _ActionButton(
       {required this.icon, required this.text, this.color = Colors.white});
+
   @override
   Widget build(BuildContext context) {
     return Column(

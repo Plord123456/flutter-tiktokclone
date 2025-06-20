@@ -35,8 +35,24 @@ class HomeController extends GetxController {
     pageController.addListener(_onPageScroll);
   }
 
-  // onInit sẽ gọi hàm này
-  Future<void> initialLoad() async {
+// Dán 2 hàm này vào bên trong class HomeController của bạn
+
+  /// Tạm dừng video hiện tại (dùng cho các tác vụ nhỏ như mở comment)
+  void pauseCurrentVideo() {
+    final currentController = _videoControllers[currentVideoIndex.value];
+    if (currentController != null && currentController.value.isPlaying) {
+      currentController.pause();
+    }
+  }
+
+  void resumeCurrentVideo() {
+    final currentController = _videoControllers[currentVideoIndex.value];
+    if (currentController != null &&
+        currentController.value.isInitialized &&
+        !currentController.value.isPlaying) {
+      currentController.play();
+    }
+  }  Future<void> initialLoad() async {
     isLoading.value = true;
     try {
       // Tải song song likes và video, rất hiệu quả!
@@ -161,14 +177,7 @@ class HomeController extends GetxController {
     _initializeControllerForIndex(currentVideoIndex.value);
     _initializeControllerForIndex(currentVideoIndex.value + 1);
   }
-  void resumeCurrentVideo() {
-    final currentController = _videoControllers[currentVideoIndex.value];
-    if (currentController != null &&
-        currentController.value.isInitialized &&
-        !currentController.value.isPlaying) {
-      currentController.play();
-    }
-  }
+
   Future<void> loadMoreVideos() async {
     if (isLoadingMore.value || !hasMoreVideos.value) return;
     isLoadingMore.value = true;
