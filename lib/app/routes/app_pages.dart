@@ -53,15 +53,7 @@ class AppPages {
       page: () => const ProfileView(),
       binding: ProfileBinding(),
     ),
-    GetPage(
-      name: '/user',
-      page: () {
-        final profileId = Get.parameters['profileId'] ?? '';
-        return VideoUserView(profileId: profileId);
-      },
 
-      binding: VideoUserBinding(),
-    ),
     GetPage(
       name: _Paths.USER_FEED,
       page: () => const UserFeedView(),
@@ -78,9 +70,18 @@ class AppPages {
       binding: ChatListBinding(),
     ),
     GetPage(
+      name: _Paths.USER_PROFILE,
+      page: () {
+        final profileId = Get.parameters['profileId'] ?? '';
+        return VideoUserView(profileId: profileId);
+      },
+      binding: VideoUserBinding(),
+    ),
+    GetPage(
       name: _Paths.CHAT_DETAIL,
       page: () => const ChatDetailView(),
       binding: ChatDetailBinding(),
     ),
   ];
+
 }

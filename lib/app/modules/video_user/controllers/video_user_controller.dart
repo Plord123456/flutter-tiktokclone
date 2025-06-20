@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tiktok_clone/app/data/models/profile_model.dart';
@@ -19,13 +20,11 @@ class VideoUserController extends GetxController {
   final RxList<Video> userVideos = <Video>[].obs;
   bool get isFollowing => followService.isFollowing(profileUserId.value);
 
-  // --- State cho việc tải dữ liệu ---
   final RxBool isLoading = true.obs;
   final RxBool isLoadingMore = false.obs;
   final RxBool hasMoreVideos = true.obs;
   final int _pageSize = 12;
 
-  // Biến để lưu "con trỏ" cho việc phân trang
   DateTime? _lastVideoTimestamp;
 
   String get currentUserId => authService.currentUserId;
@@ -34,24 +33,37 @@ class VideoUserController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    final arguments = Get.arguments;
 
-    // Giữ lại khối if/else này
-    if (arguments is String) {
-      profileUserId.value = arguments;
+    // Bạn đã làm rất tốt việc kiểm tra arguments ở đây!
+    if (Get.arguments != null && Get.arguments is String) {
+
+      // ✅ SỬA LỖI Ở ĐÂY
+      // Gán giá trị cho biến đúng: profileUserId.value
+      profileUserId.value = Get.arguments as String;
+
+      // Các logic sau đó của bạn đã đúng, giữ nguyên
+      scrollController = ScrollController();
+      scrollController.addListener(() {
+        if (scrollController.position.pixels >=
+            scrollController.position.maxScrollExtent - 300) {
+          loadMoreUserVideos();
+        }
+      });
+      fetchData();
     } else {
-      profileUserId.value = currentUserId;
+      // Phần xử lý lỗi này của bạn đã rất tốt
+      print("LỖI: VideoUserController được gọi mà không có profileId hợp lệ.");
+      isLoading.value = false;
+
+      Get.snackbar(
+        'Lỗi nghiêm trọng',
+        'Không thể xác định người dùng. Vui lòng thử lại.',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+
+      Future.delayed(const Duration(seconds: 2), () => Get.back());
     }
-    scrollController = ScrollController();
-    scrollController.addListener(() {
-      if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 300) {
-        loadMoreUserVideos();
-      }
-    });
-
-
-
-    fetchData();
   }
   @override
   void onClose() {
@@ -112,11 +124,11 @@ class VideoUserController extends GetxController {
 
     try {
       var query = supabase.from('videos').select('''
-    id, video_url, title, thumbnail_url, created_at,
-    profiles!videos_user_id_fkey(id, username, avatar_url, full_name),
-    likes(user_id),
-    comments_count:comments(count)
-  ''');
+        id, video_url, title, thumbnail_url, created_at,
+        profiles!videos_user_id_fkey(id, username, avatar_url, full_name),
+        likes_count:likes(count), 
+        comments_count:comments(count)
+      ''');
 
       // ✅ BƯỚC 1: ÁP DỤNG TẤT CẢ CÁC BỘ LỌC (FILTERING)
       query = query.eq('user_id', profileUserId.value);

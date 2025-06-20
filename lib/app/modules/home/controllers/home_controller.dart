@@ -9,7 +9,6 @@ import 'package:tiktok_clone/services/auth_service.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 
 class HomeController extends GetxController {
-  // --- PHẦN LOGIC TẢI DATA VÀ LIKE (Đã rất tốt) ---
   final supabase = Supabase.instance.client;
   final followService = Get.find<FollowService>();
   final authService = Get.find<AuthService>();
@@ -23,10 +22,8 @@ class HomeController extends GetxController {
   final RxSet<String> likedVideoIds = <String>{}.obs;
   final _likingInProgress = <String>{}.obs;
   String get currentUserId => authService.currentUserId;
-  // --- KẾT THÚC PHẦN LOGIC TẢI DATA ---
 
 
-  // --- PHẦN QUẢN LÝ VIDEO PLAYER (ĐÃ ĐƯỢC DỌN DẸP) ---
   final PageController pageController = PageController();
   final RxInt currentVideoIndex = 0.obs;
   final Map<int, CachedVideoPlayerPlusController> _videoControllers = {};
@@ -58,27 +55,21 @@ class HomeController extends GetxController {
     }
   }
 
-  // Hàm này sẽ được gọi từ PageView trong file home_view.dart
   void onPageChanged(int index) {
-    // 1. Dừng video ở trang cũ
     final oldController = _videoControllers[currentVideoIndex.value];
     if (oldController != null && oldController.value.isPlaying) {
       oldController.pause();
     }
 
-    // 2. Cập nhật trang hiện tại
     currentVideoIndex.value = index;
 
-    // 3. Chạy video ở trang mới
     final newController = _videoControllers[index];
     if (newController != null && newController.value.isInitialized) {
       newController.play();
     } else {
-      // Nếu controller chưa sẵn sàng, khởi tạo nó
       _initializeControllerForIndex(index);
     }
 
-    // 4. Tối ưu: Tải trước video tiếp theo và dọn dẹp video ở xa
     _initializeControllerForIndex(index + 1);
     _disposeControllerIfExist(index - 2);
   }
@@ -154,6 +145,42 @@ class HomeController extends GetxController {
       _disposeControllerIfExist(newIndex - 2);
     }
   }
+
+
+
+  void onPause() {
+    print("HomeController: Dọn dẹp tất cả video players.");
+    _videoControllers.forEach((key, controller) {
+      controller.dispose();
+    });
+    _videoControllers.clear();
+  }
+
+  void onResume() {
+    print("HomeController: Tái tạo video players.");
+    _initializeControllerForIndex(currentVideoIndex.value);
+    _initializeControllerForIndex(currentVideoIndex.value + 1);
+  }
+  void resumeCurrentVideo() {
+    final currentController = _videoControllers[currentVideoIndex.value];
+    if (currentController != null &&
+        currentController.value.isInitialized &&
+        !currentController.value.isPlaying) {
+      currentController.play();
+    }
+  }
+  Future<void> loadMoreVideos() async {
+    if (isLoadingMore.value || !hasMoreVideos.value) return;
+    isLoadingMore.value = true;
+    try {
+      await fetchVideos(refresh: false);
+    } catch (e) {
+      print('Lỗi khi tải thêm video: ${e.toString()}');
+    } finally {
+      isLoadingMore.value = false;
+    }
+  }
+
   Future<void> fetchVideos({required bool refresh}) async {
     try {
       final from = refresh ? 0 : videoList.length;
@@ -186,7 +213,6 @@ class HomeController extends GetxController {
       if (refresh) rethrow;
     }
   }
-
   Future<void> _fetchUserLikes() async {
     if (currentUserId.isEmpty) return;
     try {
@@ -199,41 +225,6 @@ class HomeController extends GetxController {
       likedVideoIds.assignAll(ids);
     } catch (e) {
       print('Lỗi khi tải danh sách likes: $e');
-    }
-  }
-
-  Future<void> loadMoreVideos() async {
-    if (isLoadingMore.value || !hasMoreVideos.value) return;
-    isLoadingMore.value = true;
-    try {
-      await fetchVideos(refresh: false);
-    } catch (e) {
-      print('Lỗi khi tải thêm video: ${e.toString()}');
-    } finally {
-      isLoadingMore.value = false;
-    }
-  }
-
-
-  void onPause() {
-    print("HomeController: Dọn dẹp tất cả video players.");
-    _videoControllers.forEach((key, controller) {
-      controller.dispose();
-    });
-    _videoControllers.clear();
-  }
-
-  void onResume() {
-    print("HomeController: Tái tạo video players.");
-    _initializeControllerForIndex(currentVideoIndex.value);
-    _initializeControllerForIndex(currentVideoIndex.value + 1);
-  }
-  void resumeCurrentVideo() {
-    final currentController = _videoControllers[currentVideoIndex.value];
-    if (currentController != null &&
-        currentController.value.isInitialized &&
-        !currentController.value.isPlaying) {
-      currentController.play();
     }
   }
   void toggleLike(String videoId) async {

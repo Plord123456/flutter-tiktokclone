@@ -31,23 +31,23 @@ class UserFeedController extends GetxController {
 
   @override
   void onClose() {
+    print("UserFeedController: Dọn dẹp tài nguyên.");
     pageController.dispose();
+
+    _videoControllers.forEach((key, controller) {
+      controller.dispose();
+    });
+    _videoControllers.clear();
+
     super.onClose();
   }
 
-  /// ✅ HÀM LOADMOREVIDEOS ĐÃ ĐƯỢC HOÀN THIỆN
 
   Future<void> loadMoreVideos() async {
-    // 1. Các điều kiện kiểm tra vẫn giữ nguyên ở ngoài
     if (videos.isEmpty || isLoadingMore.value || !hasMoreVideos.value) {
       return;
     }
-
-    // 2. Toàn bộ logic gọi API và CẬP NHẬT STATE phải nằm bên trong callback này
-    // Nó sẽ trì hoãn việc thực thi cho đến khi frame hiện tại được vẽ xong.
     Future.delayed(Duration.zero, () async {
-
-      // Kiểm tra lại lần nữa bên trong callback cho an toàn
       if (isLoadingMore.value) return;
 
       isLoadingMore.value = true;

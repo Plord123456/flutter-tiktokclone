@@ -11,7 +11,6 @@ import 'package:tiktok_clone/app/routes/app_pages.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 import 'package:tiktok_clone/widgets/comment_sheet.dart';
 
-// Constructor đã được dọn dẹp, chỉ còn video và index
 class VideoPlayerItem extends StatelessWidget {
   final Video video;
   final int index;
@@ -112,13 +111,11 @@ class VideoPlayerItem extends StatelessWidget {
     );
   }
 }
-
 class _ActionButtonsColumn extends StatelessWidget {
   final Video video;
   final HomeController homeController;
   const _ActionButtonsColumn(
       {required this.video, required this.homeController});
-
   @override
   Widget build(BuildContext context) {
     return Positioned(
@@ -136,15 +133,8 @@ class _ActionButtonsColumn extends StatelessWidget {
           const SizedBox(height: 25),
           GestureDetector(
               onTap: () {
-                homeController.onPause();
                 homeController.getControllerForIndex(homeController.currentVideoIndex.value)?.pause();
                 showCommentSheet(context, videoId: video.id);
-                Get.toNamed(
-                    Routes.USER_FEED,
-                    arguments: {'initialVideos': [video], 'initialIndex': 0} // Ví dụ
-                )?.then((_) {
-                  homeController.onResume();
-                });
               },
               child: Obx(() => _ActionButton(
                   icon: Iconsax.message,
@@ -170,7 +160,7 @@ class _ProfileAvatarButton extends StatelessWidget {
     return Column(children: [
       Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
         GestureDetector(
-          onTap: () => Get.toNamed(Routes.USER_FEED, arguments: author.id),
+          onTap: () => Get.toNamed(Routes.USER_PROFILE, arguments: author.id),
           child: Obx(() => CircleAvatar(
             radius: 25,
             backgroundColor: Colors.white,
