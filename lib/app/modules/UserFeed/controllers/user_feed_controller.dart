@@ -19,7 +19,7 @@ class UserFeedController extends GetxController {
   //--- State (Trạng thái) của Controller ---
   final RxList<Video> videos = <Video>[].obs;
   final RxInt currentVideoIndex = 0.obs;
-  final RxBool isLoading = true.obs; // Thêm biến này để view có thể sử dụng
+  final RxBool isLoading = true.obs;
   final RxBool isLoadingMore = false.obs;
   final RxBool hasMoreVideos = true.obs;
 
@@ -41,10 +41,11 @@ class UserFeedController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    print("🚀 onInit: UserFeedController được khởi tạo.");
     videos.assignAll(initialVideos);
     currentVideoIndex.value = initialIndex;
     pageController = PageController(initialPage: initialIndex);
-    isLoading.value = false; // Dữ liệu đã có sẵn, không cần loading
+    isLoading.value = false;
 
     // Khởi tạo các video đầu tiên
     _initializeControllerForIndex(initialIndex);
@@ -55,12 +56,11 @@ class UserFeedController extends GetxController {
 
   @override
   void onClose() {
-    print("UserFeedController: Dọn dẹp tài nguyên.");
+    print("❌ onClose: UserFeedController đang được dọn dẹp! -- RẤT QUAN TRỌNG");
     pageController.dispose();
     onPause(); // Gọi onPause để đảm bảo tất cả video players được giải phóng
     super.onClose();
   }
-
   //--- Logic chính ---
 
   void onPageChanged(int index) {
@@ -68,7 +68,6 @@ class UserFeedController extends GetxController {
     if (oldController != null && oldController.value.isPlaying) {
       oldController.pause();
     }
-
     currentVideoIndex.value = index;
     final newController = _videoControllers[index];
     if (newController != null && newController.value.isInitialized) {
@@ -76,19 +75,16 @@ class UserFeedController extends GetxController {
     } else {
       _initializeControllerForIndex(index);
     }
-
     _initializeControllerForIndex(index + 1);
     _disposeControllerIfExist(index - 2);
   }
 
   Future<void> loadMoreVideos() async {
     if (isLoadingMore.value || !hasMoreVideos.value) return;
-
     isLoadingMore.value = true;
     try {
       final lastVideo = videos.last;
       final userId = lastVideo.author.id;
-
       final response = await supabase.from('videos').select('''
         id, video_url, title, thumbnail_url, created_at,
         profiles!videos_user_id_fkey(id, username, avatar_url, full_name),
@@ -98,13 +94,11 @@ class UserFeedController extends GetxController {
           .lt('created_at', lastVideo.createdAt.toIso8601String())
           .order('created_at', ascending: false)
           .limit(_pageSize);
-
       final newVideos = response
           .map((json) => Video.fromSupabase(json,
           currentUserId: currentUserId,
           isFollowed: followService.isFollowing(userId)))
           .toList();
-
       if (newVideos.length < _pageSize) {
         hasMoreVideos.value = false;
       }
@@ -149,7 +143,7 @@ class UserFeedController extends GetxController {
     }
   }
 
-  //--- Logic Pause/Resume khi điều hướng ---
+  //--- Logic Pause/Resume khi điều hướng (quan trọng cho các app phức tạp) ---
 
   void onPause() {
     print("UserFeedController: Dọn dẹp tất cả video players.");
