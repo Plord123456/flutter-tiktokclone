@@ -1,91 +1,132 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tiktok_clone/app/data/models/video_model.dart';
-import 'package:tiktok_clone/services/auth_service.dart';
-import 'package:tiktok_clone/services/follow_service.dart';
+import 'package:cached_video_player_plus/cached_video_player_plus.dart';
+import '../../../data/models/video_model.dart';
 
 class UserFeedController extends GetxController {
-  final supabase = Supabase.instance.client;
-  final authService = Get.find<AuthService>();
-  final followService = Get.find<FollowService>();
-  final RxList<Video> videos = <Video>[].obs;
-  late PageController pageController;
+  //--- STATE & DEPENDENCIES ---
+  final List<Video> initialVideos;
   final int initialIndex;
 
-  final RxBool isLoadingMore = false.obs;
-  final RxBool hasMoreVideos = true.obs;
-  final int _pageSize = 5;
+  // Controller cho PageView để lướt video
+  late PageController pageController;
 
-  String get currentUserId => authService.currentUserId;
+  // State cho danh sách video và vị trí video hiện tại
+  final RxList<Video> videos = <Video>[].obs;
+  final RxInt currentVideoIndex = 0.obs;
 
-  UserFeedController({required List<Video> initialVideos, required this.initialIndex}) {
-    videos.assignAll(initialVideos);
-  }
+  // Nơi lưu trữ và quản lý các trình phát video
+  final Map<int, CachedVideoPlayerPlusController> _videoControllers = {};
+
+  // Constructor nhận dữ liệu từ màn hình trước
+  UserFeedController({required this.initialVideos, required this.initialIndex});
+
+  //--- VÒNG ĐỜI CONTROLLER ---
 
   @override
   void onInit() {
     super.onInit();
+    // 1. Gán dữ liệu video ban đầu
+    videos.assignAll(initialVideos);
+    currentVideoIndex.value = initialIndex;
+
+    // 2. Khởi tạo PageController tại đúng vị trí video
     pageController = PageController(initialPage: initialIndex);
+
+    // 3. Khởi tạo trước một vài video player để trải nghiệm mượt mà
+    _initializeControllerForIndex(initialIndex);
+    if (initialIndex + 1 < videos.length) {
+      _initializeControllerForIndex(initialIndex + 1);
+    }
   }
 
   @override
   void onClose() {
-    print("UserFeedController: Dọn dẹp tài nguyên.");
+    print("UserFeedController: Dọn dẹp tất cả tài nguyên.");
     pageController.dispose();
+    // Gọi onPause để đảm bảo tất cả video player được giải phóng
+    onPause();
+    super.onClose();
+  }
 
+  //--- LOGIC QUẢN LÝ VIDEO ---
+
+  /// Hàm này sẽ được kết nối với thuộc tính `onPageChanged` của PageView
+  void onPageChanged(int index) {
+    // Dừng video cũ vừa lướt qua
+    final oldController = _videoControllers[currentVideoIndex.value];
+    if (oldController != null && oldController.value.isPlaying) {
+      oldController.pause();
+    }
+
+    // Cập nhật index và chạy video mới
+    currentVideoIndex.value = index;
+    final newController = _videoControllers[index];
+    if (newController != null && newController.value.isInitialized) {
+      newController.play();
+    } else {
+      _initializeControllerForIndex(index);
+    }
+
+    // Tải trước video kế tiếp và dọn dẹp video ở xa để tiết kiệm bộ nhớ
+    _initializeControllerForIndex(index + 1);
+    _disposeControllerIfExist(index - 2);
+  }
+
+  /// Lấy video player cho một vị trí cụ thể trong list
+  CachedVideoPlayerPlusController? getControllerForIndex(int index) {
+    return _videoControllers[index];
+  }
+
+  /// Khởi tạo một video player mới
+  Future<void> _initializeControllerForIndex(int index) async {
+    // Tránh khởi tạo thừa hoặc index không hợp lệ
+    if (index < 0 || index >= videos.length || _videoControllers.containsKey(index)) {
+      return;
+    }
+
+    final video = videos[index];
+    final controller = CachedVideoPlayerPlusController.networkUrl(Uri.parse(video.videoUrl));
+    _videoControllers[index] = controller;
+
+    try {
+      await controller.initialize();
+      controller.setLooping(true);
+      // Nếu đây là video đang hiển thị thì cho nó chạy
+      if (currentVideoIndex.value == index) {
+        controller.play();
+      }
+      // Cập nhật UI để hiển thị video player
+      update();
+    } catch (e) {
+      print("Lỗi khởi tạo video tại index $index: $e");
+      _videoControllers.remove(index);
+    }
+  }
+
+  /// Dọn dẹp một video player cụ thể
+  void _disposeControllerIfExist(int index) {
+    if (_videoControllers.containsKey(index)) {
+      _videoControllers[index]?.dispose();
+      _videoControllers.remove(index);
+    }
+  }
+
+  //--- LOGIC PAUSE/RESUME KHI ĐIỀU HƯỚNG ---
+
+  /// Dọn dẹp TOÀN BỘ video khi rời khỏi màn hình này
+  void onPause() {
+    print("UserFeedController: Dọn dẹp tất cả video players.");
     _videoControllers.forEach((key, controller) {
       controller.dispose();
     });
     _videoControllers.clear();
-
-    super.onClose();
   }
 
-
-  Future<void> loadMoreVideos() async {
-    if (videos.isEmpty || isLoadingMore.value || !hasMoreVideos.value) {
-      return;
-    }
-    Future.delayed(Duration.zero, () async {
-      if (isLoadingMore.value) return;
-
-      isLoadingMore.value = true;
-
-      try {
-        final lastVideo = videos.last;
-        final userId = lastVideo.author.id;
-
-        final response = await supabase
-            .from('videos')
-            .select('''
-            id, video_url, title, thumbnail_url, created_at,
-            profiles!videos_user_id_fkey(id, username, avatar_url, full_name),
-            likes(user_id),
-            comments_count:comments(count)
-          ''')
-            .eq('user_id', userId)
-            .lt('created_at', lastVideo.createdAt.toIso8601String())
-            .order('created_at', ascending: false)
-            .limit(_pageSize);
-
-        final newVideos = response.map((json) => Video.fromSupabase(
-            json,
-            currentUserId: currentUserId,
-            isFollowed: followService.isFollowing(userId)
-        )).toList();
-
-        if (newVideos.length < _pageSize) {
-          hasMoreVideos.value = false;
-        }
-
-        videos.addAll(newVideos);
-
-      } catch (e) {
-        print('Failed to load more videos: $e');
-      } finally {
-        isLoadingMore.value = false;
-      }
-    });
+  /// Tái tạo video khi quay lại màn hình này
+  void onResume() {
+    print("UserFeedController: Tái tạo video players.");
+    _initializeControllerForIndex(currentVideoIndex.value);
+    _initializeControllerForIndex(currentVideoIndex.value + 1);
   }
 }
