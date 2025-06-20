@@ -35,7 +35,7 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     initialLoad();
-    // Bỏ _setupPageListener() đi, chúng ta sẽ dùng onPageChanged trong View
+    pageController.addListener(_onPageScroll);
   }
 
   // onInit sẽ gọi hàm này
@@ -124,6 +124,7 @@ class HomeController extends GetxController {
 
   @override
   void onClose() {
+    pageController.removeListener(_onPageScroll);
     pageController.dispose();
     _videoControllers.forEach((key, controller) {
       controller.dispose();
@@ -132,9 +133,27 @@ class HomeController extends GetxController {
     super.onClose();
   }
 
-  // --- CÁC HÀM CŨ CỦA BẠN (fetchVideos, toggleLike, ...) VẪN GIỮ NGUYÊN VÌ ĐÃ TỐT ---
-  // ... (giữ lại các hàm fetchVideos, _fetchUserLikes, loadMoreVideos, toggleLike, toggleFollow)
-  // Tôi đã sửa lỗi `videos` thành `videoList` trong hàm _initializeControllerForIndex
+  void _onPageScroll() {
+    final newIndex = pageController.page?.round();
+
+    if (newIndex != null && newIndex != currentVideoIndex.value) {
+      final oldController = _videoControllers[currentVideoIndex.value];
+      if (oldController != null && oldController.value.isPlaying) {
+        oldController.pause();
+      }
+      currentVideoIndex.value = newIndex;
+
+      final newController = _videoControllers[newIndex];
+      if (newController != null && newController.value.isInitialized) {
+        newController.play();
+      } else {
+        _initializeControllerForIndex(newIndex);
+      }
+
+      _initializeControllerForIndex(newIndex + 1);
+      _disposeControllerIfExist(newIndex - 2);
+    }
+  }
   Future<void> fetchVideos({required bool refresh}) async {
     try {
       final from = refresh ? 0 : videoList.length;
