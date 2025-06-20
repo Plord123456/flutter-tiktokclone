@@ -7,7 +7,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:tiktok_clone/app/data/models/profile_model.dart';
 import 'package:tiktok_clone/app/data/models/video_model.dart';
 import 'package:tiktok_clone/app/modules/home/controllers/home_controller.dart';
-import '../app/routes/app_pages.dart';
+import 'package:tiktok_clone/app/routes/app_pages.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 import 'package:tiktok_clone/widgets/comment_sheet.dart';
 

@@ -55,7 +55,11 @@ class AppPages {
     ),
     GetPage(
       name: '/user',
-      page: () => const VideoUserView(),
+      page: () {
+        final profileId = Get.parameters['profileId'] ?? '';
+        return VideoUserView(profileId: profileId);
+      },
+
       binding: VideoUserBinding(),
     ),
     GetPage(

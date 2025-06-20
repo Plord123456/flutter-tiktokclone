@@ -22,6 +22,7 @@ abstract class _Paths {
   static const LAYOUT = '/layout';
   static const LOGIN = '/login';
   static const PROFILE = '/profile';
+
   static const UPLOAD_VIDEO = '/upload-video'; // ✅ SỬA CHÍNH TẢ
   static const CONFIRM_UPLOAD = '/confirm-upload';
   static const USER_PROFILE = '/user-profile'; // ✅ ĐỔI TÊN CHO RÕ NGHĨA
