@@ -24,11 +24,20 @@ class HomeView extends GetView<HomeController> {
             physics: const PageScrollPhysics(parent: BouncingScrollPhysics()),
             itemCount: controller.videoList.length,
             onPageChanged: controller.onPageChanged,
+
             itemBuilder: (context, index) {
               final video = controller.videoList[index];
-              return VideoPlayerItem( video: video,
-                index: index, );
-              },
+              final videoPlayerController = controller.getControllerForIndex(index);
+
+              if (videoPlayerController != null) {
+                return VideoPlayerItem(
+                  video: video,
+                  videoPlayerController: videoPlayerController,
+                  index: index,
+                );
+              }
+              return Container(color: Colors.black);
+            },
           );
         },
       ),

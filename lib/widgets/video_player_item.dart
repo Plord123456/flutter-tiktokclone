@@ -1,4 +1,3 @@
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/material.dart';
@@ -11,130 +10,145 @@ import 'package:tiktok_clone/app/routes/app_pages.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 import 'package:tiktok_clone/widgets/comment_sheet.dart';
 
+import '../app/modules/UserFeed/controllers/user_feed_controller.dart';
+
+// ✅ BƯỚC 1: SỬA LẠI HOÀN TOÀN WIDGET NÀY
+
 class VideoPlayerItem extends StatelessWidget {
   final Video video;
-  final int index;
+  final CachedVideoPlayerPlusController videoPlayerController;
+  final int index; // Vẫn giữ index để biết video nào đang active
 
   const VideoPlayerItem({
     required this.video,
+    required this.videoPlayerController,
     required this.index,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    final HomeController homeController = Get.find<HomeController>();
-    return GetBuilder<HomeController>(
-      id: video.id,
-      builder: (controller) {
-        final videoPlayerController = controller.getControllerForIndex(index);
+    // Không còn Get.find<HomeController>() ở đây nữa
 
-        if (videoPlayerController == null || !videoPlayerController.value.isInitialized) {
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              if (video.thumbnailUrl.isNotEmpty)
-                Image.network(video.thumbnailUrl, fit: BoxFit.cover),
-              const Center(child: CircularProgressIndicator(color: Colors.white)),
-            ],
-          );
-        }
+    // Nếu controller chưa sẵn sàng, hiện thumbnail và loading
+    if (!videoPlayerController.value.isInitialized) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          if (video.thumbnailUrl.isNotEmpty)
+            Image.network(video.thumbnailUrl, fit: BoxFit.cover),
+          const Center(child: CircularProgressIndicator(color: Colors.white)),
+        ],
+      );
+    }
 
-        return Scaffold(
-          backgroundColor: Colors.black,
-          body: Stack(
-            alignment: Alignment.bottomLeft,
-            children: [
-              Center(
-                child: AspectRatio(
-                  aspectRatio: videoPlayerController.value.aspectRatio,
-                  child: CachedVideoPlayerPlus(videoPlayerController),
-                ),
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                      colors: [Colors.black.withOpacity(0.5), Colors.transparent],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      stops: const [0.0, 0.4]),
-                ),
-              ),
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: () {
-                    if (videoPlayerController.value.isPlaying) {
-                      videoPlayerController.pause();
-                    } else {
-                      videoPlayerController.play();
-                    }
-                  },
-                  child: Obx(() => AnimatedOpacity(
-                    opacity: controller.currentVideoIndex.value == index &&
-                        !videoPlayerController.value.isPlaying
-                        ? 1.0
-                        : 0.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: Center(
-                      child: Icon(Iconsax.play,
-                          color: Colors.white.withOpacity(0.7), size: 80),
-                    ),
-                  )),
-                ),
-              ),
-              Positioned(
-                left: 16,
-                right: 80,
-                bottom: 60,
-                child: _VideoInfoOverlay(video: video),
-              ),
-              _ActionButtonsColumn(video: video, homeController: homeController),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: VideoProgressIndicator(
-                  videoPlayerController,
-                  allowScrubbing: true,
-                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                  colors: VideoProgressColors(
-                    playedColor: Colors.white,
-                    bufferedColor: Colors.white.withOpacity(0.4),
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                  ),
-                ),
-              ),
-            ],
+    // Giao diện chính khi video đã sẵn sàng
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        alignment: Alignment.bottomLeft,
+        children: [
+          Center(
+            child: AspectRatio(
+              aspectRatio: videoPlayerController.value.aspectRatio,
+              child: CachedVideoPlayerPlus(videoPlayerController),
+            ),
           ),
-        );
-      },
+          // Gradient Overlay
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: [Colors.black.withOpacity(0.5), Colors.transparent],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  stops: const [0.0, 0.4]),
+            ),
+          ),
+          // Nút Play/Pause ở giữa
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                if (videoPlayerController.value.isPlaying) {
+                  videoPlayerController.pause();
+                } else {
+                  videoPlayerController.play();
+                }
+              },
+              // AnimatedOpacity cần biết index của video nào đang chạy
+              // Nhưng logic này nên nằm trong controller, ở đây ta đơn giản hóa
+              // bằng cách chỉ dựa vào trạng thái isPlaying của chính video này.
+              child: AnimatedOpacity(
+                opacity: !videoPlayerController.value.isPlaying ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: Center(
+                  child: Icon(Iconsax.play,
+                      color: Colors.white.withOpacity(0.7), size: 80),
+                ),
+              ),
+            ),
+          ),
+          // Thông tin video
+          Positioned(
+            left: 16,
+            right: 80,
+            bottom: 60,
+            child: _VideoInfoOverlay(video: video),
+          ),
+          // Các nút action bên phải
+          _ActionButtonsColumn(video: video),
+          // Thanh tiến trình video
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: VideoProgressIndicator(
+              videoPlayerController,
+              allowScrubbing: true,
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              colors: VideoProgressColors(
+                playedColor: Colors.white,
+                bufferedColor: Colors.white.withOpacity(0.4),
+                backgroundColor: Colors.white.withOpacity(0.2),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
+// Hãy tìm class _ActionButtonsColumn và thay thế nó bằng toàn bộ class này
+
 class _ActionButtonsColumn extends StatelessWidget {
   final Video video;
-  final HomeController homeController;
-  const _ActionButtonsColumn(
-      {required this.video, required this.homeController});
+  const _ActionButtonsColumn({required this.video});
+
   @override
   Widget build(BuildContext context) {
+    final dynamic currentController = Get.isRegistered<UserFeedController>()
+        ? Get.find<UserFeedController>()
+        : Get.find<HomeController>();
+
     return Positioned(
       right: 10,
       bottom: 60,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _ProfileAvatarButton(author: video.author, homeController: homeController),
+          _ProfileAvatarButton(author: video.author),
           const SizedBox(height: 25),
           _LikeButton(
-              onTap: () => homeController.toggleLike(video.id),
+              onTap: () => currentController.toggleLike(video.id),
               isLiked: video.isLikedByCurrentUser,
               likeCount: video.likeCount),
           const SizedBox(height: 25),
+
+          // NÚT COMMENT VỚI LOGIC ĐÚNG
           GestureDetector(
               onTap: () {
-                homeController.getControllerForIndex(homeController.currentVideoIndex.value)?.pause();
+                currentController.pauseCurrentVideo();
                 showCommentSheet(context, videoId: video.id);
+                currentController.resumeCurrentVideo();
               },
               child: Obx(() => _ActionButton(
                   icon: Iconsax.message,
@@ -146,21 +160,31 @@ class _ActionButtonsColumn extends StatelessWidget {
     );
   }
 }
-
+// Sửa lại _ProfileAvatarButton
 class _ProfileAvatarButton extends StatelessWidget {
   final Profile author;
-  final HomeController homeController;
-  const _ProfileAvatarButton(
-      {required this.author, required this.homeController});
+  const _ProfileAvatarButton({required this.author});
 
   @override
   Widget build(BuildContext context) {
     final FollowService followService = Get.find();
-    final bool isOwnVideo = author.id == homeController.currentUserId;
+    // Tìm controller phù hợp
+    final dynamic currentController = Get.isRegistered<UserFeedController>()
+        ? Get.find<UserFeedController>()
+        : Get.find<HomeController>();
+    final bool isOwnVideo = author.id == currentController.currentUserId;
+
     return Column(children: [
       Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
         GestureDetector(
-          onTap: () => Get.toNamed(Routes.USER_PROFILE, arguments: author.id),
+          onTap: () {
+            currentController.onPause();
+            Get.toNamed(
+              Routes.USER_PROFILE.replaceAll(':profileId', author.id),
+            )?.then((_) {
+              currentController.onResume();
+            });
+          },
           child: Obx(() => CircleAvatar(
             radius: 25,
             backgroundColor: Colors.white,
@@ -177,7 +201,7 @@ class _ProfileAvatarButton extends StatelessWidget {
               ? Positioned(
               bottom: -10,
               child: GestureDetector(
-                  onTap: () => homeController.toggleFollow(author.id),
+                  onTap: () => currentController.toggleFollow(author.id),
                   child: Container(
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
@@ -185,8 +209,8 @@ class _ProfileAvatarButton extends StatelessWidget {
                           shape: BoxShape.circle,
                           border:
                           Border.all(color: Colors.black, width: 1.5)),
-                      child:
-                      const Icon(Icons.add, color: Colors.white, size: 16))))
+                      child: const Icon(Icons.add,
+                          color: Colors.white, size: 16))))
               : const SizedBox.shrink()),
       ]),
     ]);

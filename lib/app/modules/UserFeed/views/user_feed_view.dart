@@ -49,8 +49,16 @@ class UserFeedView extends GetView<UserFeedController> {
             },
             itemBuilder: (context, index) {
               final video = controller.videos[index];
-              // VideoPlayerItem sẽ hiển thị từng video
-              return VideoPlayerItem(video: video, index: index);
+              final videoPlayerController = controller.getControllerForIndex(index);
+
+              if (videoPlayerController != null) {
+                return VideoPlayerItem(
+                  video: video,
+                  videoPlayerController: videoPlayerController,
+                  index: index,
+                );
+              }
+              return Container(color: Colors.black);
             },
           );
         },

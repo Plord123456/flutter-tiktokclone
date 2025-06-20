@@ -36,11 +36,8 @@ class VideoUserController extends GetxController {
 
     // Bạn đã làm rất tốt việc kiểm tra arguments ở đây!
     if (Get.arguments != null && Get.arguments is String) {
-
-      // ✅ SỬA LỖI Ở ĐÂY
-      // Gán giá trị cho biến đúng: profileUserId.value
       profileUserId.value = Get.arguments as String;
-
+      print("🚀 onInit: VideoUserController được khởi tạo với ID: ${profileUserId.value}");
       // Các logic sau đó của bạn đã đúng, giữ nguyên
       scrollController = ScrollController();
       scrollController.addListener(() {
@@ -67,6 +64,7 @@ class VideoUserController extends GetxController {
   }
   @override
   void onClose() {
+    print("❌ onClose: VideoUserController đang được dọn dẹp!");
     scrollController.dispose();
     super.onClose();
   }
