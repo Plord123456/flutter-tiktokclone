@@ -25,7 +25,7 @@ class ChatDetailView extends GetView<ChatDetailController> {
     return Scaffold(
       appBar: AppBar(
 
-        title: Obx(() => Text((controller.conversation.otherUserUsername as String?) ?? 'Chat')),
+        title: Obx(() => Text(controller.conversation.value.otherUserUsername ?? 'Chat')),
       ),
       body: Column(
         children: [
@@ -152,10 +152,9 @@ class _RepliedMessagePreview extends StatelessWidget {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
     final isReplyingToMyOwnMessage = message.senderId == currentUserId;
 
-    // *** SỬA LỖI Ở ĐÂY ***
-    // Xử lý an toàn: Kiểm tra xem `sender` có tồn tại không trước khi truy cập `username`.
-    // Nếu `sender` là null, chúng ta sẽ hiển thị một tên mặc định.
-    final String authorUsername = (message.sender?.username ?? 'Người dùng').toString();
+
+    final String authorUsername = message.sender?.username ?? 'Người dùng';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
