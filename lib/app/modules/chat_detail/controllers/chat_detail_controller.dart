@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tiktok_clone/app/data/models/conversation_model.dart';
 import 'package:tiktok_clone/app/data/models/message_model.dart';
-import 'package:tiktok_clone/services/auth_service.dart'; // V THÊM IMPORT
+import 'package:tiktok_clone/services/auth_service.dart';
 import 'package:tiktok_clone/services/chat_service.dart';
 import 'package:uuid/uuid.dart';
 
@@ -48,11 +48,9 @@ class ChatDetailController extends GetxController {
     final tempMessage = Message(
       id: const Uuid().v4(),
       conversationId: conversation.id,
-      // V SỬA: Lấy ID người gửi từ AuthService
       senderId: _authService.currentUserId,
       content: content,
       createdAt: DateTime.now(),
-      // V SỬA: Lấy profile người gửi từ AuthService để hiển thị tạm
       sender: _authService.userProfile.value,
       repliedToMessage: replyingToMessage.value,
     );

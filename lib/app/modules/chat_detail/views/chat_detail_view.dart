@@ -8,7 +8,7 @@ import '../controllers/chat_detail_controller.dart';
 
 class ChatDetailView extends GetView<ChatDetailController> {
   const ChatDetailView({super.key});
-  // ... (build method giữ nguyên)
+
   @override
   Widget build(BuildContext context) {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
@@ -30,7 +30,6 @@ class ChatDetailView extends GetView<ChatDetailController> {
                 itemCount: controller.messages.length,
                 itemBuilder: (context, index) {
                   final message = controller.messages[index];
-                  // Sửa logic check isMe theo senderId
                   final isMe = message.senderId == currentUserId;
                   return _MessageBubble(
                     message: message,
@@ -39,8 +38,7 @@ class ChatDetailView extends GetView<ChatDetailController> {
                   );
                 },
               );
-            },
-            ),
+            }),
           ),
           _MessageInputField(),
         ],
@@ -61,7 +59,7 @@ class _MessageBubble extends StatelessWidget {
   });
 
   String formatTimestamp(DateTime dt) => DateFormat('HH:mm').format(dt);
-  // ... (build method giữ nguyên)
+
   @override
   Widget build(BuildContext context) {
     return Slidable(
@@ -72,7 +70,8 @@ class _MessageBubble extends StatelessWidget {
         children: [
           SlidableAction(
             onPressed: (context) => onReply(),
-            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+            backgroundColor:
+            Theme.of(context).colorScheme.primary.withOpacity(0.8),
             foregroundColor: Colors.white,
             icon: Icons.reply,
             label: 'Trả lời',
@@ -82,12 +81,15 @@ class _MessageBubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             if (message.repliedToMessage != null)
-              _RepliedMessagePreview(message: message.repliedToMessage!, isMe: isMe),
+              _RepliedMessagePreview(
+                  message: message.repliedToMessage!, isMe: isMe),
             Row(
-              mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+              mainAxisAlignment:
+              isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
               children: [
                 Flexible(
                   child: Container(
@@ -123,8 +125,9 @@ class _RepliedMessagePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // V SỬA: Khai báo rõ ràng kiểu dữ liệu để tránh lỗi
-    final String authorUsername = message.sender?.username?.toString() ?? '...';    final isReplyingToMyOwnMessage =
+    // V SỬA: Khai báo rõ ràng kiểu dữ liệu của authorUsername
+    final String authorUsername = message.sender?.username ?? '...';
+    final isReplyingToMyOwnMessage =
         message.senderId == Supabase.instance.client.auth.currentUser!.id;
 
     return Container(
@@ -168,25 +171,33 @@ class _RepliedMessagePreview extends StatelessWidget {
 }
 
 class _MessageInputField extends GetView<ChatDetailController> {
-  // ... (Giữ nguyên logic)
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        boxShadow: [ BoxShadow( offset: const Offset(0, -1), blurRadius: 4, color: Colors.black.withOpacity(0.05),) ],
+        boxShadow: [
+          BoxShadow(
+            offset: const Offset(0, -1),
+            blurRadius: 4,
+            color: Colors.black.withOpacity(0.05),
+          )
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Obx(() {
-            if (controller.replyingToMessage.value == null) return const SizedBox.shrink();
+            if (controller.replyingToMessage.value == null)
+              return const SizedBox.shrink();
             final message = controller.replyingToMessage.value!;
             return Container(
               padding: const EdgeInsets.all(8),
               margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8)),
               child: Row(
                 children: [
                   const Icon(Icons.reply, size: 16, color: Colors.black54),
@@ -195,12 +206,20 @@ class _MessageInputField extends GetView<ChatDetailController> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Đang trả lời ${message.sender?.username ?? 'chính bạn'}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        Text(message.content, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+                        Text(
+                            "Đang trả lời ${message.sender?.username ?? 'chính bạn'}",
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text(message.content,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
-                  IconButton(icon: const Icon(Icons.close, size: 16), onPressed: controller.cancelReply)
+                  IconButton(
+                      icon: const Icon(Icons.close, size: 16),
+                      onPressed: controller.cancelReply)
                 ],
               ),
             );
@@ -213,16 +232,21 @@ class _MessageInputField extends GetView<ChatDetailController> {
                     controller: controller.textController,
                     decoration: InputDecoration(
                       hintText: 'Nhập tin nhắn...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none),
                       filled: true,
                       fillColor: Colors.grey.shade100,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16),
                     ),
                     onSubmitted: (_) => controller.sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton(icon: const Icon(Icons.send), onPressed: controller.sendMessage),
+                IconButton(
+                    icon: const Icon(Icons.send),
+                    onPressed: controller.sendMessage),
               ],
             ),
           ),

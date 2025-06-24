@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tiktok_clone/app/data/models/conversation_model.dart';
 import 'package:tiktok_clone/app/data/models/message_model.dart';
+import 'package:tiktok_clone/services/auth_service.dart';
 
 class ChatService extends GetxService {
   final _supabase = Supabase.instance.client;
