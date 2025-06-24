@@ -24,9 +24,6 @@ class ChatDetailController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // *** SỬA LỖI Ở ĐÂY (2/2) ***
-    // Lấy đối tượng Conversation từ arguments và biến nó thành một
-    // đối tượng reactive bằng cách thêm `.obs`.
     conversation = (Get.arguments as Conversation).obs;
 
     _fetchMessages();

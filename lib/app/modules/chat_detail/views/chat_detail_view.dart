@@ -24,8 +24,7 @@ class ChatDetailView extends GetView<ChatDetailController> {
 
     return Scaffold(
       appBar: AppBar(
-
-        title: Obx(() => Text(controller.conversation.value.otherUserUsername ?? 'Chat')),
+        title: Obx(() => Text((controller.conversation.value.otherUserUsername as String?) ?? 'Chat')),
       ),
       body: Column(
         children: [
@@ -152,8 +151,10 @@ class _RepliedMessagePreview extends StatelessWidget {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
     final isReplyingToMyOwnMessage = message.senderId == currentUserId;
 
-
-    final String authorUsername = message.sender?.username ?? 'Người dùng';
+    // Thêm ép kiểu (as String?) để đảm bảo an toàn về kiểu dữ liệu
+    final String displayName = isReplyingToMyOwnMessage
+        ? 'Bạn'
+        : (message.sender?.username as String?) ?? 'Người dùng';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
@@ -175,8 +176,9 @@ class _RepliedMessagePreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Sử dụng biến displayName đã được tính toán ở trên.
           Text(
-            isReplyingToMyOwnMessage ? 'Bạn' : authorUsername,
+            displayName,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: isReplyingToMyOwnMessage
@@ -225,7 +227,7 @@ class _MessageInputField extends GetView<ChatDetailController> {
             // Tương tự, lấy username một cách an toàn
             final replyingToUsername = (message.senderId == Supabase.instance.client.auth.currentUser!.id)
                 ? 'chính bạn'
-                : message.sender?.username ?? 'một người dùng';
+                : (message.sender?.username as String?) ?? 'một người dùng';
 
             return Container(
               padding: const EdgeInsets.all(8),
