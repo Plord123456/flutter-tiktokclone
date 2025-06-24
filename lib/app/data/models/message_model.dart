@@ -1,5 +1,3 @@
-// lib/app/data/models/message_model.dart
-
 import 'package:tiktok_clone/app/data/models/profile_model.dart';
 
 class Message {
@@ -8,7 +6,11 @@ class Message {
   final String senderId;
   final String content;
   final DateTime createdAt;
-  final Profile? sender; // Thông tin người gửi (username, avatar)
+  final Profile? sender;
+
+  // Sửa: Đổi thành String? để nhất quán với `id`
+  final String? replyToMessageId;
+  final Message? repliedToMessage;
 
   Message({
     required this.id,
@@ -17,28 +19,26 @@ class Message {
     required this.content,
     required this.createdAt,
     this.sender,
+    this.replyToMessageId,
+    this.repliedToMessage,
   });
 
-  // ==========================================================
-  // CẬP NHẬT LẠI HÀM NÀY CHO AN TOÀN HƠN
-  // ==========================================================
-  factory Message.fromJson(Map<String, dynamic> json) {
+  // Sửa: Cập nhật factory để xử lý đầy đủ các trường
+  factory Message.fromJson(Map<String, dynamic> json, {Message? repliedToMessage}) {
     return Message(
-      // Thêm '?? ''' để gán giá trị mặc định nếu bị null
-      id: json['id'] ?? '',
-      conversationId: json['conversation_id'] ?? '',
-      senderId: json['sender_id'] ?? '',
+      id: json['id']?.toString() ?? '',
+      conversationId: json['conversation_id']?.toString() ?? '',
+      senderId: json['sender_id']?.toString() ?? '',
       content: json['content'] ?? '',
-
-      // Xử lý an toàn cho cả trường hợp created_at bị null
       createdAt: json['created_at'] == null
-          ? DateTime.now() // Gán thời gian hiện tại nếu null
+          ? DateTime.now()
           : DateTime.parse(json['created_at']),
-
-      // Kiểm tra xem dữ liệu 'sender' có được join từ Supabase không
       sender: json['sender'] != null && json['sender'] is Map<String, dynamic>
           ? Profile.fromSupabase(json['sender'])
-          : null,
+          : (json['profiles'] != null ? Profile.fromJson(json['profiles']) : null),
+      // Bổ sung logic còn thiếu
+      replyToMessageId: json['reply_to_message_id']?.toString(),
+      repliedToMessage: repliedToMessage,
     );
   }
 }

@@ -21,17 +21,13 @@ class AuthService extends GetxService {
       fetchUserProfile();
     }
   }
-
   void _setupAuthListener() {
     supabase.auth.onAuthStateChange.listen((data) {
       final event = data.event;
       final user = data.session?.user;
-
       if (event == AuthChangeEvent.signedIn && user != null) {
-        // Khi đăng nhập thành công, tải profile
         fetchUserProfile();
       } else if (event == AuthChangeEvent.signedOut) {
-        // Khi đăng xuất, xóa profile
         userProfile.value = null;
       }
     });

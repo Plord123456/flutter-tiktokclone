@@ -32,16 +32,27 @@ class HomeView extends GetView<HomeController> {
             },
             itemBuilder: (context, index) {
               final video = controller.videoList[index];
-              final videoPlayerController = controller.getControllerForIndex(index);
-              if (videoPlayerController != null) {
-                return VideoPlayerItem(
-                  video: video,
-                  videoPlayerController: videoPlayerController,
-                  index: index,
-                );
-              }
-              // Fallback, có thể hiện một placeholder
-              return Container(color: Colors.black);
+              // GetBuilder sẽ lắng nghe tín hiệu update() với ID tương ứng
+              return GetBuilder<HomeController>(
+                id: video.id, // ID này khớp với ID trong lệnh update([video.id])
+                builder: (logic) {
+                  final videoPlayerController = logic.getControllerForIndex(index);
+                  if (videoPlayerController != null) {
+                    return VideoPlayerItem(
+                      video: video,
+                      videoPlayerController: videoPlayerController,
+                      index: index,
+                    );
+                  }
+                  // Hiển thị loading trong khi chờ controller được tạo
+                  return Container(
+                    color: Colors.black,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  );
+                },
+              );
             },
           );
         },

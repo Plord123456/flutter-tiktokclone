@@ -1,91 +1,68 @@
-// lib/services/chat_service.dart
-
-import 'dart:async';
-
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tiktok_clone/app/data/models/conversation_model.dart';
 import 'package:tiktok_clone/app/data/models/message_model.dart';
-import 'package:tiktok_clone/app/data/models/profile_model.dart';
 
 class ChatService extends GetxService {
-  final supabase = Supabase.instance.client;
-
-  String get currentUserId => supabase.auth.currentUser!.id;
-
-  Future<String?> findOrCreateConversation(String otherUserId) async {
-    if (otherUserId == currentUserId) return null;
-    try {
-      final data = await supabase.rpc('find_or_create_conversation',
-          params: {'user1_id': currentUserId, 'user2_id': otherUserId});
-      return data as String?;
-    } catch (e) {
-      Get.snackbar('Lỗi', 'Không thể bắt đầu cuộc trò chuyện: $e');
-      return null;
-    }
-  }
+  final _supabase = Supabase.instance.client;
+  String? get _userId => _supabase.auth.currentUser?.id;
 
   Future<List<Conversation>> getConversations() async {
+    if (_userId == null) throw Exception('User not logged in');
     try {
-      final response = await supabase
-          .rpc('get_user_conversations', params: {'p_user_id': currentUserId});
+      final data = await _supabase
+          .rpc('get_user_conversations_with_details', params: {'p_user_id': _userId});
 
-
-      print('DEBUG: Dữ liệu JSON nhận được từ RPC: $response');
-
-      final conversations = (response as List<dynamic>)
-          .map((json) => Conversation.fromJson(json, currentUserId: currentUserId))
-          .toList();
-      return conversations;
+      return (data as List).map((item) => Conversation.fromJson(item)).toList();
     } catch (e) {
-      print('Lỗi khi lấy danh sách cuộc trò chuyện: $e');
+      print('Error fetching conversations: $e');
       return [];
     }
   }
 
-  Future<List<Message>> getMessages(String conversationId,
-      {int page = 1, int pageSize = 20}) async {
-    final from = (page - 1) * pageSize;
-    final to = from + pageSize - 1;
-    try {
-      final response = await supabase
-          .from('messages')
-          .select('*, sender:profiles!messages_sender_id_fkey(*)')
-          .eq('conversation_id', conversationId)
-          .order('created_at', ascending: false)
-          .range(from, to);
-      return response.map((json) => Message.fromJson(json)).toList();
-    } catch (e) {
-      print('Lỗi khi tải tin nhắn: $e');
-      return [];
-    }
-  }
-
-  Future<void> sendMessage(String conversationId, String content) async {
-    if (content.trim().isEmpty) return;
-    await supabase.from('messages').insert({
-      'conversation_id': conversationId,
-      'sender_id': currentUserId,
-      'content': content.trim(),
-    });
-  }
-
-  Future<void> deleteMessage(String messageId) async {
-    await supabase.from('messages').delete().eq('id', messageId);
-  }
-  StreamSubscription<List<Map<String, dynamic>>> subscribeToMessages(
-      String conversationId, Function(List<Map<String, dynamic>>) onNewPayload) {
-    final stream = supabase
+  Future<List<Message>> getMessages(String conversationId) async {
+    final data = await _supabase
         .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('conversation_id', conversationId);
+        .select('*, sender:sender_id(*)') // Hoặc `profiles:user_id(*)` tùy CSDL
+        .eq('conversation_id', conversationId)
+        .order('created_at', ascending: false);
 
-    // Lắng nghe stream này và truyền toàn bộ payload về cho controller xử lý
-    final subscription = stream.listen((payload) {
-      onNewPayload(payload);
-    });
+    final messages = <Message>[];
+    final messageMap = <String, Map<String, dynamic>>{};
+    for (var item in data) {
+      messageMap[item['id'].toString()] = item;
+    }
 
-    return subscription;
+    for (var item in data) {
+      Message? repliedTo;
+      final replyId = item['reply_to_message_id']?.toString();
+      if (replyId != null && messageMap.containsKey(replyId)) {
+        repliedTo = Message.fromJson(messageMap[replyId]!);
+      }
+      messages.add(Message.fromJson(item, repliedToMessage: repliedTo));
+    }
+
+    return messages;
   }
 
+  Future<void> sendMessage({
+    required String conversationId,
+    required String content,
+    String? replyToMessageId,
+  }) async {
+    if (_userId == null) return;
+    await _supabase.from('messages').insert({
+      'sender_id': _userId, // Sửa thành sender_id
+      'conversation_id': conversationId,
+      'content': content,
+      'reply_to_message_id': replyToMessageId,
+    });
+  }
+
+  Future<String?> findOrCreateConversation(String otherUserId) async {
+    if (_userId == null) return null;
+    final result = await _supabase.rpc('find_or_create_conversation',
+        params: {'user1_id': _userId, 'user2_id': otherUserId});
+    return result?.toString();
+  }
 }

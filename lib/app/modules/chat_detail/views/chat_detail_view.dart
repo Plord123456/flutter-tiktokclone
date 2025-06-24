@@ -1,10 +1,9 @@
-// lib/app/modules/chat/chat_detail/views/chat_detail_view.dart
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
-import 'package:iconsax/iconsax.dart';
-
+import 'package:intl/intl.dart';
+import 'package:tiktok_clone/app/data/models/message_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../controllers/chat_detail_controller.dart';
 
 class ChatDetailView extends GetView<ChatDetailController> {
@@ -12,110 +11,219 @@ class ChatDetailView extends GetView<ChatDetailController> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = Supabase.instance.client.auth.currentUser!.id;
+
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: CachedNetworkImageProvider(
-                controller.conversation.value.otherParticipant.avatarUrl?.value ?? '',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(controller.conversation.value.otherParticipant.username.value),
-          ],
-        ),
+        title: Text(controller.conversation.otherUserUsername ?? 'Chat'),
       ),
       body: Column(
         children: [
           Expanded(
-            child: Obx(
-                  () {
-                if (controller.isLoading.value && controller.messages.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return ListView.builder(
-                  controller: controller.scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.all(16.0),
-                  itemCount: controller.messages.length,
-                  itemBuilder: (context, index) {
-                    final message = controller.messages[index];
-                    final isMe = message.senderId == controller.currentUserId;
-
-                    // Bọc bong bóng chat trong GestureDetector
-                    return GestureDetector(
-                      // Kích hoạt hàm xóa khi nhấn giữ
-                      onLongPress: isMe ? () => controller.confirmDeleteMessage(message) : null,
-                      child: _buildMessageBubble(isMe, message.content),
-                    );
-                  },
-                );
-              },
+            child: Obx(() {
+              if (controller.isLoading.value) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return ListView.builder(
+                reverse: true,
+                controller: controller.scrollController,
+                itemCount: controller.messages.length,
+                itemBuilder: (context, index) {
+                  final message = controller.messages[index];
+                  // Sửa logic check isMe theo senderId
+                  final isMe = message.senderId == currentUserId;
+                  return _MessageBubble(
+                    message: message,
+                    isMe: isMe,
+                    onReply: () => controller.setReplyingTo(message),
+                  );
+                },
+              );
+            },
             ),
           ),
-          _buildMessageInput(),
+          _MessageInputField(),
         ],
       ),
     );
   }
+}
 
-  Widget _buildMessageBubble(bool isMe, String content) {
-    return Row(
-      mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-      children: [
-        Container(
-          constraints: BoxConstraints(maxWidth: Get.width * 0.7),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(
-            color: isMe ? Get.theme.primaryColor : Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Text(
-            content,
-            style: TextStyle(
-              color: isMe ? Colors.white : Colors.black87,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+// _MessageBubble và các widget con không cần thay đổi nhiều,
+// chỉ cần đảm bảo chúng nhận đúng dữ liệu từ model mới.
+class _MessageBubble extends StatelessWidget {
+  final Message message;
+  final bool isMe;
+  final VoidCallback onReply;
 
-  Widget _buildMessageInput() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-      decoration: BoxDecoration(
-        color: Get.theme.scaffoldBackgroundColor,
-        boxShadow: [
-          BoxShadow(
-            offset: const Offset(0, -1),
-            blurRadius: 4,
-            color: Colors.black.withOpacity(0.05),
+  const _MessageBubble({
+    required this.message,
+    required this.isMe,
+    required this.onReply,
+  });
+
+  String formatTimestamp(DateTime dt) => DateFormat('HH:mm').format(dt);
+
+  @override
+  Widget build(BuildContext context) {
+    return Slidable(
+      key: ValueKey(message.id),
+      startActionPane: ActionPane(
+        motion: const StretchMotion(),
+        extentRatio: 0.25,
+        children: [
+          SlidableAction(
+            onPressed: (context) => onReply(),
+            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+            foregroundColor: Colors.white,
+            icon: Icons.reply,
+            label: 'Trả lời',
           ),
         ],
       ),
-      child: SafeArea(
-        child: Row(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Column(
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: TextField(
-                controller: controller.messageInputController,
-                decoration: const InputDecoration(
-                  hintText: 'Nhập tin nhắn...',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12),
+            if (message.repliedToMessage != null)
+              _RepliedMessagePreview(message: message.repliedToMessage!, isMe: isMe),
+            Row(
+              mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isMe ? Colors.blue.shade100 : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(message.content),
+                  ),
                 ),
-                onSubmitted: (_) => controller.sendMessage(),
-              ),
+              ],
             ),
-            IconButton(
-              icon: Icon(Iconsax.send_1, color: Get.theme.primaryColor),
-              onPressed: controller.sendMessage,
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 10, right: 10),
+              child: Text(
+                formatTimestamp(message.createdAt),
+                style: const TextStyle(fontSize: 10, color: Colors.grey),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RepliedMessagePreview extends StatelessWidget {
+  final Message message;
+  final bool isMe;
+
+  const _RepliedMessagePreview({required this.message, required this.isMe});
+
+  @override
+  Widget build(BuildContext context) {
+    final authorUsername = message.sender?.username ?? '...';
+    final isReplyingToMyOwnMessage = message.senderId == Supabase.instance.client.auth.currentUser!.id;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4, left: 1, right: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: (isMe ? Colors.blue.shade50 : Colors.grey.shade100).withOpacity(0.7),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+        border: Border(
+          left: BorderSide(color: isReplyingToMyOwnMessage ? Colors.blue : Colors.green, width: 3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isReplyingToMyOwnMessage ? 'Bạn' : authorUsername,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: isReplyingToMyOwnMessage ? Colors.blue : Colors.green,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            message.content,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageInputField extends GetView<ChatDetailController> {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        boxShadow: [ BoxShadow( offset: const Offset(0, -1), blurRadius: 4, color: Colors.black.withOpacity(0.05),) ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Obx(() {
+            if (controller.replyingToMessage.value == null) return const SizedBox.shrink();
+            final message = controller.replyingToMessage.value!;
+            return Container(
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
+              child: Row(
+                children: [
+                  const Icon(Icons.reply, size: 16, color: Colors.black54),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Đang trả lời ${message.sender?.username ?? 'chính bạn'}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text(message.content, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  IconButton(icon: const Icon(Icons.close, size: 16), onPressed: controller.cancelReply)
+                ],
+              ),
+            );
+          }),
+          SafeArea(
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller.textController,
+                    decoration: InputDecoration(
+                      hintText: 'Nhập tin nhắn...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    onSubmitted: (_) => controller.sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(icon: const Icon(Icons.send), onPressed: controller.sendMessage),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -5,7 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tiktok_clone/app/data/models/profile_model.dart';
 import 'package:tiktok_clone/services/follow_service.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../services/chat_service.dart';
+import '../../../data/models/conversation_model.dart';
 import '../../../data/models/video_model.dart';
+import '../../../routes/app_pages.dart';
 import '../../home/controllers/home_controller.dart';
 
 class VideoUserController extends GetxController {
@@ -19,6 +22,7 @@ class VideoUserController extends GetxController {
   final Rxn<Profile> userProfile = Rxn<Profile>();
   final RxList<Video> userVideos = <Video>[].obs;
   bool get isFollowing => followService.isFollowing(profileUserId.value);
+  final chatService = Get.find<ChatService>();
 
   final RxBool isLoading = true.obs;
   final RxBool isLoadingMore = false.obs;
@@ -189,5 +193,32 @@ class VideoUserController extends GetxController {
       fetchData();
     }
 
+  }
+  // V THÊM: Chuyển toàn bộ logic điều hướng chat vào đây
+  Future<void> navigateToChat() async {
+    // Đảm bảo profile của người cần chat tồn tại
+    if (userProfile.value == null) {
+      Get.snackbar('Lỗi', 'Không tìm thấy thông tin người dùng để bắt đầu trò chuyện.');
+      return;
+    }
+
+    // Tìm hoặc tạo cuộc trò chuyện
+    final conversationId = await chatService.findOrCreateConversation(profileUserId.value);
+
+    if (conversationId == null) {
+      Get.snackbar('Lỗi', 'Không thể tạo hoặc tìm thấy cuộc trò chuyện.');
+      return;
+    }
+
+    // Sửa lỗi ở đây: Tạo đối tượng Conversation với đúng tham số
+    final conversationForNav = Conversation(
+      id: conversationId,
+      otherUserId: userProfile.value!.id,
+      otherUserUsername: userProfile.value!.username.value,
+      otherUserAvatarUrl: userProfile.value!.avatarUrl.value,
+    );
+
+    // Điều hướng đến màn hình chi tiết cuộc trò chuyện
+    Get.toNamed(Routes.CHAT_DETAIL, arguments: conversationForNav);
   }
 }

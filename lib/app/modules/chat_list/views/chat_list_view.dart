@@ -1,76 +1,72 @@
-// lib/app/modules/chat/chat_list/views/chat_list_view.dart
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:timeago/timeago.dart' as timeago;
-
+import 'package:intl/intl.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
+import 'package:tiktok_clone/app/routes/app_pages.dart';
 import '../controllers/chat_list_controller.dart';
 
 class ChatListView extends GetView<ChatListController> {
   const ChatListView({super.key});
 
+  String formatTimestamp(DateTime? dt) {
+    if (dt == null) return '';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(dt.year, dt.month, dt.day);
+
+    if (date == today) return DateFormat('HH:mm').format(dt);
+    return DateFormat('dd/MM/yy').format(dt);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Cài đặt ngôn ngữ cho timeago
-    timeago.setLocaleMessages('vi', timeago.ViMessages());
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tin nhắn'),
         centerTitle: true,
       ),
-      body: Obx(
-            () {
-          if (controller.isLoading.value) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (controller.conversations.isEmpty) {
-            return const Center(child: Text('Chưa có cuộc trò chuyện nào.'));
-          }
-          // Dùng RefreshIndicator để người dùng có thể vuốt xuống để tải lại
-          return RefreshIndicator(
-            onRefresh: controller.fetchConversations,
-            child: ListView.builder(
-              itemCount: controller.conversations.length,
-              itemBuilder: (context, index) {
-                final conversation = controller.conversations[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    radius: 28,
-                    backgroundImage: CachedNetworkImageProvider(
-                      // Lấy avatar của người đối diện
-                      conversation.otherParticipant.avatarUrl.value,
-                    ),
-                    // Fallback nếu không có avatar
-                    child: conversation.otherParticipant.avatarUrl.value.isEmpty
-                        ? const Icon(Icons.person)
-                        : null,
+      body: Obx(() {
+        if (controller.isLoading.value && controller.conversations.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (controller.conversations.isEmpty) {
+          return const Center(child: Text('Chưa có cuộc trò chuyện nào.'));
+        }
+        return SmartRefresher(
+          controller: controller.refreshController,
+          onRefresh: controller.onRefresh,
+          header: const WaterDropHeader(),
+          child: ListView.builder(
+            itemCount: controller.conversations.length,
+            itemBuilder: (context, index) {
+              final conversation = controller.conversations[index];
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: NetworkImage(
+                    conversation.otherUserAvatarUrl ?? 'https://placehold.co/100',
                   ),
-                  title: Text(
-                    // Lấy username của người đối diện
-                    conversation.otherParticipant.username.value,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    conversation.lastMessageContent ?? 'Bắt đầu trò chuyện ngay!',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: Text(
-                    conversation.lastMessageCreatedAt != null
-                    // Hiển thị thời gian dạng "5 phút trước", "1 giờ trước"
-                        ? timeago.format(conversation.lastMessageCreatedAt!, locale: 'vi')
-                        : '',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  onTap: () => controller.navigateToChatDetail(conversation),
-                );
-              },
-            ),
-          );
-        },
-      ),
+                ),
+                title: Text(
+                  conversation.otherUserUsername ?? 'Người dùng',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  conversation.lastMessageContent ?? '...',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Text(
+                  formatTimestamp(conversation.lastMessageCreatedAt),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                onTap: () {
+                  Get.toNamed(Routes.CHAT_DETAIL, arguments: conversation);
+                },
+              );
+            },
+          ),
+        );
+      }),
     );
   }
 }

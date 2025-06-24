@@ -59,18 +59,15 @@ class ConfirmUploadController extends GetxController {
 
       uploadStatus.value = 'Đang lưu thông tin...';
 
-      // Bước 2: Lưu metadata vào database
-      // Chèn dữ liệu vào bảng 'videos'
       final newVideoData = await _supabase.from('videos').insert({
         'user_id': user.id,
-        'caption': captionController.text.trim(), // Đổi từ title thành caption cho nhất quán
+        'title': captionController.text.trim(),
         'video_url': uploadResult.videoUrl,
         'thumbnail_url': uploadResult.thumbnailUrl,
       }).select().single();
 
       final newVideoId = newVideoData['id'];
 
-      // Bước 3: Xử lý tags
       if (tags.isNotEmpty) {
         // Upsert tags để đảm bảo không bị trùng lặp
         final tagsToUpsert =
@@ -80,7 +77,6 @@ class ConfirmUploadController extends GetxController {
             .upsert(tagsToUpsert, onConflict: 'name')
             .select();
 
-        // Chèn vào bảng trung gian 'video_tags'
         final videoTagsToInsert = upsertedTags
             .map((tagData) => {
           'video_id': newVideoId,
@@ -90,7 +86,6 @@ class ConfirmUploadController extends GetxController {
         await _supabase.from('video_tags').insert(videoTagsToInsert);
       }
 
-      // Bước 4: Hoàn tất và dọn dẹp
       Get.offAllNamed(Routes.LAYOUT); // Quay về trang chính
       _homeController.fetchVideos(refresh: true); // Làm mới danh sách video
       Get.snackbar('Thành công', 'Đã đăng video của bạn!');
