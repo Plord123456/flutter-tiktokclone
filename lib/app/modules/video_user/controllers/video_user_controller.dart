@@ -194,31 +194,29 @@ class VideoUserController extends GetxController {
     }
 
   }
-  // V THÊM: Chuyển toàn bộ logic điều hướng chat vào đây
+
+
   Future<void> navigateToChat() async {
-    // Đảm bảo profile của người cần chat tồn tại
     if (userProfile.value == null) {
-      Get.snackbar('Lỗi', 'Không tìm thấy thông tin người dùng để bắt đầu trò chuyện.');
+      Get.snackbar('Lỗi', 'Không tìm thấy thông tin người dùng.');
       return;
     }
 
-    // Tìm hoặc tạo cuộc trò chuyện
-    final conversationId = await chatService.findOrCreateConversation(profileUserId.value);
+    final conversationId =
+    await chatService.findOrCreateConversation(userProfile.value!.id);
 
     if (conversationId == null) {
-      Get.snackbar('Lỗi', 'Không thể tạo hoặc tìm thấy cuộc trò chuyện.');
+      Get.snackbar('Lỗi', 'Không thể tạo cuộc trò chuyện.');
       return;
     }
 
-    // Sửa lỗi ở đây: Tạo đối tượng Conversation với đúng tham số
     final conversationForNav = Conversation(
       id: conversationId,
       otherUserId: userProfile.value!.id,
-      otherUserUsername: userProfile.value!.username.value,
-      otherUserAvatarUrl: userProfile.value!.avatarUrl.value,
+      otherUserUsername: userProfile.value!.username.value, // Sửa ở đây
+      otherUserAvatarUrl: userProfile.value!.avatarUrl.value, // Sửa ở đây
     );
 
-    // Điều hướng đến màn hình chi tiết cuộc trò chuyện
     Get.toNamed(Routes.CHAT_DETAIL, arguments: conversationForNav);
   }
 }

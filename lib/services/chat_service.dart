@@ -12,7 +12,6 @@ class ChatService extends GetxService {
     try {
       final data = await _supabase
           .rpc('get_user_conversations_with_details', params: {'p_user_id': _userId});
-
       return (data as List).map((item) => Conversation.fromJson(item)).toList();
     } catch (e) {
       print('Error fetching conversations: $e');
@@ -21,9 +20,13 @@ class ChatService extends GetxService {
   }
 
   Future<List<Message>> getMessages(String conversationId) async {
+    // V SỬA: Lấy userId ở đầu hàm để sử dụng lại
+    final currentUserId = _userId;
+    if (currentUserId == null) return []; // Nếu không có user thì trả về rỗng
+
     final data = await _supabase
         .from('messages')
-        .select('*, sender:sender_id(*)') // Hoặc `profiles:user_id(*)` tùy CSDL
+        .select('*, sender:sender_id(*)')
         .eq('conversation_id', conversationId)
         .order('created_at', ascending: false);
 
@@ -37,11 +40,14 @@ class ChatService extends GetxService {
       Message? repliedTo;
       final replyId = item['reply_to_message_id']?.toString();
       if (replyId != null && messageMap.containsKey(replyId)) {
-        repliedTo = Message.fromJson(messageMap[replyId]!);
+        // V SỬA: Truyền currentUserId vào đây
+        repliedTo =
+            Message.fromJson(messageMap[replyId]!, currentUserId: currentUserId);
       }
-      messages.add(Message.fromJson(item, repliedToMessage: repliedTo));
+      // V SỬA: Truyền currentUserId vào đây
+      messages.add(Message.fromJson(item,
+          repliedToMessage: repliedTo, currentUserId: currentUserId));
     }
-
     return messages;
   }
 
@@ -52,7 +58,7 @@ class ChatService extends GetxService {
   }) async {
     if (_userId == null) return;
     await _supabase.from('messages').insert({
-      'sender_id': _userId, // Sửa thành sender_id
+      'sender_id': _userId,
       'conversation_id': conversationId,
       'content': content,
       'reply_to_message_id': replyToMessageId,

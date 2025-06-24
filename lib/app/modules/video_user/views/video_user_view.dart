@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:iconsax/iconsax.dart';
-
-import '../../../../services/chat_service.dart';
-import '../../../data/models/conversation_model.dart';
 import '../../../data/models/profile_model.dart';
 import '../../../data/models/video_model.dart';
 import '../../../routes/app_pages.dart';
@@ -12,13 +9,12 @@ import '../../profile/bindings/profile_binding.dart';
 import '../../profile/views/edit_profile_view.dart';
 import '../controllers/video_user_controller.dart';
 
+// V SỬA: Xóa tham số không cần thiết trong hàm khởi tạo
 class VideoUserView extends GetView<VideoUserController> {
-  const VideoUserView({Key? key, required String profileId}) : super(key: key);
+  const VideoUserView({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // ✅ TỐI ƯU 1: ĐÃ XÓA BỎ VIỆC TẠO SCROLL CONTROLLER Ở ĐÂY
-
     return Scaffold(
       body: Obx(() {
         if (controller.isLoading.value) {
@@ -30,7 +26,8 @@ class VideoUserView extends GetView<VideoUserController> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text('Không tìm thấy người dùng.'),
-                TextButton(onPressed: controller.fetchData, child: const Text('Thử lại')),
+                TextButton(
+                    onPressed: controller.fetchData, child: const Text('Thử lại')),
               ],
             ),
           );
@@ -40,11 +37,12 @@ class VideoUserView extends GetView<VideoUserController> {
         return RefreshIndicator(
           onRefresh: () => controller.fetchData(),
           child: CustomScrollView(
-            // ✅ TỐI ƯU 1: SỬ DỤNG SCROLL CONTROLLER TỪ GETX CONTROLLER
             controller: controller.scrollController,
             slivers: [
               SliverAppBar(
-                title: Obx(() => Text(profile.username.value, style: const TextStyle(fontWeight: FontWeight.bold))),
+                // V SỬA: Lấy giá trị .value từ RxString
+                title: Text(profile.username.value,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
                 backgroundColor: Theme.of(context).scaffoldBackgroundColor,
                 pinned: true,
                 elevation: 0,
@@ -55,7 +53,8 @@ class VideoUserView extends GetView<VideoUserController> {
                 child: Obx(() => controller.isLoadingMore.value
                     ? const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2)),
                 )
                     : const SizedBox.shrink()),
               ),
@@ -71,6 +70,7 @@ class VideoUserView extends GetView<VideoUserController> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         children: [
+          // V SỬA: Lấy giá trị .value từ RxString
           Obx(() => CircleAvatar(
             radius: 45,
             backgroundColor: Colors.grey.shade200,
@@ -82,11 +82,13 @@ class VideoUserView extends GetView<VideoUserController> {
                 : null,
           )),
           const SizedBox(height: 12),
-          Obx(() => Text( // Bọc Obx để tên có thể thay đổi trong tương lai
+          // V SỬA: Lấy giá trị .value từ RxString
+          Obx(() => Text(
             profile.fullName.value.isNotEmpty
                 ? profile.fullName.value
                 : '@${profile.username.value}',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style:
+            const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           )),
           const SizedBox(height: 16),
           _buildStatsRow(profile),
@@ -98,12 +100,10 @@ class VideoUserView extends GetView<VideoUserController> {
     );
   }
 
-  // Widget này nhận vào RxInt trực tiếp
   Widget _buildStatsRow(Profile profile) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        // ✅ TỐI ƯU 2: TRUYỀN TRỰC TIẾP BIẾN RXINT
         _buildStatColumn('Posts', profile.postCount),
         _buildStatColumn('Followers', profile.followerCount),
         _buildStatColumn('Following', profile.followingCount),
@@ -111,7 +111,7 @@ class VideoUserView extends GetView<VideoUserController> {
     );
   }
 
-  // Widget này nhận RxInt và dùng Obx để lắng nghe
+  // V SỬA: Widget này bây giờ nhận RxInt
   Widget _buildStatColumn(String label, RxInt value) {
     return Column(
       children: [
@@ -129,17 +129,14 @@ class VideoUserView extends GetView<VideoUserController> {
     return Obx(() => SizedBox(
       width: double.infinity,
       child: controller.isMyProfile
-      // Nếu là profile của tôi, chỉ hiển thị nút "Edit Profile"
           ? OutlinedButton(
         onPressed: () {
           Get.to(() => EditProfileView(), binding: ProfileBinding());
         },
         child: const Text('Edit Profile'),
       )
-      // Nếu là profile của người khác, hiển thị cả Follow và Nhắn tin
           : Row(
         children: [
-          // Nút Follow/Unfollow chiếm phần lớn không gian
           Expanded(
             child: ElevatedButton(
               onPressed: controller.toggleFollow,
@@ -147,38 +144,25 @@ class VideoUserView extends GetView<VideoUserController> {
                 backgroundColor: controller.isFollowing
                     ? Colors.grey.shade300
                     : Colors.red,
-                foregroundColor:
-                controller.isFollowing ? Colors.black : Colors.white,
+                foregroundColor: controller.isFollowing
+                    ? Colors.black
+                    : Colors.white,
               ),
-              child: Text(controller.isFollowing ? 'Unfollow' : 'Follow'),
+              child: Text(
+                  controller.isFollowing ? 'Unfollow' : 'Follow'),
             ),
           ),
-          const SizedBox(width: 8), // Khoảng cách giữa 2 nút
+          const SizedBox(width: 8),
+          // V SỬA: Chuyển logic vào controller và chỉ gọi hàm ở đây
           IconButton(
             icon: const Icon(Iconsax.message),
-            onPressed: () async {
-              final ChatService chatService = Get.find();
-
-              final conversationId =
-              await chatService.findOrCreateConversation(
-                controller.profileUserId.value,
-              );
-
-              if (conversationId != null) {
-                final conversationForNav = Conversation(
-                  id: conversationId,
-                  otherParticipant: controller.userProfile.value!,
-                  lastMessageContent: null,
-                  lastMessageCreatedAt: null,
-                );
-                Get.toNamed(Routes.CHAT_DETAIL, arguments: conversationForNav);
-              }
-            },
+            onPressed: controller.navigateToChat,
           ),
         ],
       ),
     ));
   }
+
   Widget _buildVideoGrid() {
     return Obx(() {
       if (controller.userVideos.isEmpty && !controller.isLoading.value) {
@@ -204,12 +188,16 @@ class VideoUserView extends GetView<VideoUserController> {
                 'initialVideos': controller.userVideos.toList(),
                 'initialIndex': index,
               }),
-              onLongPress: controller.isMyProfile ? () => _showVideoOptions(context, video) : null,
+              onLongPress: controller.isMyProfile
+                  ? () => _showVideoOptions(context, video)
+                  : null,
               child: CachedNetworkImage(
                 imageUrl: video.thumbnailUrl,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(color: Colors.grey.shade200),
-                errorWidget: (context, error, stackTrace) => Container(color: Colors.grey.shade300),
+                placeholder: (context, url) =>
+                    Container(color: Colors.grey.shade200),
+                errorWidget: (context, error, stackTrace) =>
+                    Container(color: Colors.grey.shade300),
               ),
             );
           },
@@ -218,6 +206,7 @@ class VideoUserView extends GetView<VideoUserController> {
       );
     });
   }
+
   void _showVideoOptions(BuildContext context, Video video) {
     Get.bottomSheet(
       Wrap(
@@ -252,7 +241,8 @@ class VideoUserView extends GetView<VideoUserController> {
   void _showDeleteConfirmationDialog(BuildContext context, Video video) {
     Get.defaultDialog(
       title: "Xác nhận xóa",
-      middleText: "Bạn có chắc chắn muốn xóa video này không? Hành động này không thể hoàn tác.",
+      middleText:
+      "Bạn có chắc chắn muốn xóa video này không? Hành động này không thể hoàn tác.",
       titleStyle: const TextStyle(fontWeight: FontWeight.bold),
       textConfirm: "Xóa",
       textCancel: "Hủy",

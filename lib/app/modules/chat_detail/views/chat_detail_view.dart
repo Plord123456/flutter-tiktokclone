@@ -8,7 +8,7 @@ import '../controllers/chat_detail_controller.dart';
 
 class ChatDetailView extends GetView<ChatDetailController> {
   const ChatDetailView({super.key});
-
+  // ... (build method giữ nguyên)
   @override
   Widget build(BuildContext context) {
     final currentUserId = Supabase.instance.client.auth.currentUser!.id;
@@ -49,8 +49,6 @@ class ChatDetailView extends GetView<ChatDetailController> {
   }
 }
 
-// _MessageBubble và các widget con không cần thay đổi nhiều,
-// chỉ cần đảm bảo chúng nhận đúng dữ liệu từ model mới.
 class _MessageBubble extends StatelessWidget {
   final Message message;
   final bool isMe;
@@ -63,7 +61,7 @@ class _MessageBubble extends StatelessWidget {
   });
 
   String formatTimestamp(DateTime dt) => DateFormat('HH:mm').format(dt);
-
+  // ... (build method giữ nguyên)
   @override
   Widget build(BuildContext context) {
     return Slidable(
@@ -125,20 +123,24 @@ class _RepliedMessagePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authorUsername = message.sender?.username ?? '...';
-    final isReplyingToMyOwnMessage = message.senderId == Supabase.instance.client.auth.currentUser!.id;
+    // V SỬA: Khai báo rõ ràng kiểu dữ liệu để tránh lỗi
+    final String authorUsername = message.sender?.username?.toString() ?? '...';    final isReplyingToMyOwnMessage =
+        message.senderId == Supabase.instance.client.auth.currentUser!.id;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 4, left: 1, right: 1),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: (isMe ? Colors.blue.shade50 : Colors.grey.shade100).withOpacity(0.7),
+        color:
+        (isMe ? Colors.blue.shade50 : Colors.grey.shade100).withOpacity(0.7),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(12),
           topRight: Radius.circular(12),
         ),
         border: Border(
-          left: BorderSide(color: isReplyingToMyOwnMessage ? Colors.blue : Colors.green, width: 3),
+          left: BorderSide(
+              color: isReplyingToMyOwnMessage ? Colors.blue : Colors.green,
+              width: 3),
         ),
       ),
       child: Column(
@@ -166,6 +168,7 @@ class _RepliedMessagePreview extends StatelessWidget {
 }
 
 class _MessageInputField extends GetView<ChatDetailController> {
+  // ... (Giữ nguyên logic)
   @override
   Widget build(BuildContext context) {
     return Container(

@@ -1,24 +1,20 @@
 import 'package:get/get.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../modules/UserFeed/bindings/user_feed_binding.dart';
-import '../modules/UserFeed/views/user_feed_view.dart';
-import '../modules/chat_detail/bindings/chat_detail_binding.dart';
-import '../modules/chat_detail/views/chat_detail_view.dart';
-import '../modules/chat_list/bindings/chat_list_binding.dart';
-import '../modules/chat_list/views/chat_list_view.dart';
-import '../modules/confirm_upload/views/confirm_upload_view.dart';
-import '../modules/home/bindings/home_binding.dart';
-import '../modules/home/views/home_view.dart';
-import '../modules/layout/bindings/layout_binding.dart';
-import '../modules/layout/views/layout_view.dart';
-import '../modules/login/bindings/login_binding.dart';
-import '../modules/login/views/login_view.dart';
-import '../modules/profile/bindings/profile_binding.dart';
-import '../modules/profile/views/edit_profile_view.dart';
-import '../modules/profile/views/profile_view.dart';
-import '../modules/video_user/bindings/video_user_binding.dart';
-import '../modules/video_user/views/video_user_view.dart';
+import 'package:tiktok_clone/app/modules/UserFeed/bindings/user_feed_binding.dart';
+import 'package:tiktok_clone/app/modules/UserFeed/views/user_feed_view.dart';
+import 'package:tiktok_clone/app/modules/chat_detail/bindings/chat_detail_binding.dart';
+import 'package:tiktok_clone/app/modules/chat_detail/views/chat_detail_view.dart';
+import 'package:tiktok_clone/app/modules/chat_list/bindings/chat_list_binding.dart';
+import 'package:tiktok_clone/app/modules/chat_list/views/chat_list_view.dart';
+import 'package:tiktok_clone/app/modules/home/bindings/home_binding.dart';
+import 'package:tiktok_clone/app/modules/home/views/home_view.dart';
+import 'package:tiktok_clone/app/modules/layout/bindings/layout_binding.dart';
+import 'package:tiktok_clone/app/modules/layout/views/layout_view.dart';
+import 'package:tiktok_clone/app/modules/login/bindings/login_binding.dart';
+import 'package:tiktok_clone/app/modules/login/views/login_view.dart';
+import 'package:tiktok_clone/app/modules/profile/bindings/profile_binding.dart';
+import 'package:tiktok_clone/app/modules/profile/views/profile_view.dart';
+import 'package:tiktok_clone/app/modules/video_user/bindings/video_user_binding.dart';
+import 'package:tiktok_clone/app/modules/video_user/views/video_user_view.dart';
 import 'app_middleware.dart';
 
 part 'app_routes.dart';
@@ -26,10 +22,8 @@ part 'app_routes.dart';
 class AppPages {
   AppPages._();
 
-  static final INITIAL =
-      Supabase.instance.client.auth.currentSession?.user != null
-          ? Routes.LAYOUT
-          : Routes.LOGIN;
+  // INITIAL route logic remains the same
+  static const INITIAL = Routes.LAYOUT;
 
   static final routes = [
     GetPage(
@@ -41,7 +35,7 @@ class AppPages {
       name: _Paths.LAYOUT,
       page: () => const LayoutView(),
       binding: LayoutBinding(),
-      middlewares: [AuthMiddleware()], // Áp dụng middleware cho trang chủ
+      middlewares: [AuthMiddleware()],
     ),
     GetPage(
       name: _Paths.LOGIN,
@@ -53,16 +47,10 @@ class AppPages {
       page: () => const ProfileView(),
       binding: ProfileBinding(),
     ),
-
     GetPage(
       name: _Paths.USER_FEED,
       page: () => const UserFeedView(),
       binding: UserFeedBinding(),
-    ),
-    GetPage(
-      name: _Paths.EDIT_PROFILE, // Sử dụng Routes.EDIT_PROFILE
-      page: () => const EditProfileView(),
-      binding: ProfileBinding(),
     ),
     GetPage(
       name: _Paths.CHAT_LIST,
@@ -71,10 +59,8 @@ class AppPages {
     ),
     GetPage(
       name: _Paths.USER_PROFILE,
-      page: () {
-        final profileId = Get.parameters['profileId'] ?? '';
-        return VideoUserView(profileId: profileId);
-      },
+
+      page: () => const VideoUserView(),
       binding: VideoUserBinding(),
     ),
     GetPage(
@@ -83,5 +69,4 @@ class AppPages {
       binding: ChatDetailBinding(),
     ),
   ];
-
 }

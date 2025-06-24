@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tiktok_clone/app/data/models/conversation_model.dart';
 import 'package:tiktok_clone/app/data/models/message_model.dart';
+import 'package:tiktok_clone/services/auth_service.dart'; // V THÊM IMPORT
 import 'package:tiktok_clone/services/chat_service.dart';
 import 'package:uuid/uuid.dart';
 
 class ChatDetailController extends GetxController {
   final ChatService _chatService = Get.find();
+  // V SỬA: Thêm AuthService
+  final AuthService _authService = Get.find();
   late final Conversation conversation;
 
   var messages = <Message>[].obs;
@@ -22,13 +25,13 @@ class ChatDetailController extends GetxController {
     super.onInit();
     conversation = Get.arguments as Conversation;
     _fetchMessages();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) => _fetchMessages(isPolling: true));
+    _pollingTimer =
+        Timer.periodic(const Duration(seconds: 5), (_) => _fetchMessages(isPolling: true));
   }
 
   Future<void> _fetchMessages({bool isPolling = false}) async {
     if (!isPolling) isLoading.value = true;
     try {
-      // Sửa: Đảm bảo conversation.id là String
       final result = await _chatService.getMessages(conversation.id);
       if (result.length != messages.length || isPolling) {
         messages.assignAll(result);
@@ -44,30 +47,28 @@ class ChatDetailController extends GetxController {
 
     final tempMessage = Message(
       id: const Uuid().v4(),
-      // Sửa: Đảm bảo conversation.id là String
       conversationId: conversation.id,
-      senderId: _chatService.supabase.auth.currentUser!.id,
+      // V SỬA: Lấy ID người gửi từ AuthService
+      senderId: _authService.currentUserId,
       content: content,
       createdAt: DateTime.now(),
+      // V SỬA: Lấy profile người gửi từ AuthService để hiển thị tạm
+      sender: _authService.userProfile.value,
       repliedToMessage: replyingToMessage.value,
-      // Thêm sender tạm thời để UI hiển thị đúng avatar
-      sender: _chatService.authService.userProfile.value,
     );
 
     messages.insert(0, tempMessage);
 
     final messageToSend = content;
-    // Sửa: replyId giờ là String?
     final String? replyId = replyingToMessage.value?.id;
 
     textController.clear();
     cancelReply();
 
     await _chatService.sendMessage(
-      // Sửa: Đảm bảo conversation.id là String
       conversationId: conversation.id,
       content: messageToSend,
-      replyToMessageId: replyId, // Truyền String?
+      replyToMessageId: replyId,
     );
 
     await _fetchMessages(isPolling: true);
